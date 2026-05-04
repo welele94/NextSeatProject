@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Next Seat",
+    "slug": "next-seat",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "nextseat",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F7F9"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
