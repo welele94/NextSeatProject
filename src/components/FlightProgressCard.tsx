@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { ProgressBar } from "@/components/ProgressBar";
+import { formatMinutes } from "@/features/time/formatMinutes";
 
 type FlightProgressCardProps = {
   progressPercent: number;
@@ -25,11 +26,14 @@ export function FlightProgressCard({
       <View style={styles.stats}>
         <View>
           <Text style={styles.statLabel}>Elapsed</Text>
-          <Text style={styles.statValue}>{elapsedMinutes} min</Text>
+          <Text style={styles.statValue}>{formatMinutes(elapsedMinutes)}</Text>
         </View>
         <View style={styles.statEnd}>
           <Text style={styles.statLabel}>Remaining</Text>
-          <Text style={styles.statValue}>{remainingMinutes} min</Text>
+          <Text style={styles.statValue}>
+            {formatMinutes(remainingMinutes)}
+
+          </Text>
         </View>
       </View>
     </View>

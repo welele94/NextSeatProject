@@ -1,3 +1,4 @@
+import { createRelativeTimestamp } from "@/features/time/createRelativeTimestamp";
 import { Flight } from "@/types/flight";
 
 export const mockFlights: Flight[] = [
@@ -27,8 +28,8 @@ export const mockFlights: Flight[] = [
       }
     },
     schedule: {
-      scheduledDeparture: new Date(Date.now() - 52 * 60 * 1000).toISOString(),
-      scheduledArrival: new Date(Date.now() + 118 * 60 * 1000).toISOString(),
+      scheduledDeparture: createRelativeTimestamp(-52),
+      scheduledArrival: createRelativeTimestamp(118),
       estimatedDurationMinutes: 170
     },
     routeDistanceKm: 1650,

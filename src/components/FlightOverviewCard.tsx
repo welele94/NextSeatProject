@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
+import { formatMinutes } from "@/features/time/formatMinutes";
 import { Flight } from "@/types/flight";
 
 type FlightOverviewCardProps = {
@@ -31,7 +32,7 @@ export function FlightOverviewCard({ flight }: FlightOverviewCardProps) {
 
       <View style={styles.metaRow}>
         <Text style={styles.metaText}>
-          {flight.schedule.estimatedDurationMinutes} min
+          {formatMinutes(flight.schedule.estimatedDurationMinutes)}
         </Text>
         <Text style={styles.metaText}>{flight.routeDistanceKm} km</Text>
       </View>

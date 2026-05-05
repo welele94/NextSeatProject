@@ -13,15 +13,18 @@ import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTi
 import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
 import { getFlightContextMessage } from "@/features/flightCore/getFlightContextMessage";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
+import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 export default function FlightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
   const flight = getMockFlightById(id);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-
+    const timer = setInterval(
+      () => setCurrentTime(getCurrentTimestamp()),
+      60000
+    );
     return () => clearInterval(timer);
   }, []);
 
