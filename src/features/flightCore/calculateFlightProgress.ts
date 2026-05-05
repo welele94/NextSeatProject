@@ -9,7 +9,7 @@ function clamp(value: number, min: number, max: number) {
 
 export function calculateFlightProgress(
   flight: Flight,
-  currentTime: Date = new Date()
+  currentTime: Date = getCurrentTimestamp()
 ): FlightProgress {
   const departureTime = parseTimestamp(flight.schedule.scheduledDeparture);
   const arrivalTime = parseTimestamp(flight.schedule.scheduledArrival);
