@@ -3,98 +3,85 @@ import { Flight } from "@/types/flight";
 
 export const mockFlights: Flight[] = [
   {
-    id: "mock-flight-1",
-    flightNumber: "NS 421",
+    id: "mock-flight-2",
+    flightNumber: "NS 105",
     airline: "Next Seat Airways",
-    aircraftType: "Airbus A320",
+    aircraftType: "Airbus A319",
+
     origin: {
-      code: "OPO",
-      name: "Francisco Sa Carneiro Airport",
-      city: "Porto",
+      code: "LIS",
+      name: "Humberto Delgado Airport",
+      city: "Lisbon",
       country: "Portugal",
       coordinates: {
-        latitude: 41.2481,
-        longitude: -8.6814
+        latitude: 38.7742,
+        longitude: -9.1342
       }
     },
+
     destination: {
-      code: "FRA",
-      name: "Frankfurt Airport",
-      city: "Frankfurt",
-      country: "Germany",
+      code: "MAD",
+      name: "Adolfo Suárez Madrid–Barajas Airport",
+      city: "Madrid",
+      country: "Spain",
       coordinates: {
-        latitude: 50.0379,
-        longitude: 8.5622
+        latitude: 40.4983,
+        longitude: -3.5676
       }
     },
+
     schedule: {
-      scheduledDeparture: createRelativeTimestamp(-52),
-      scheduledArrival: createRelativeTimestamp(118),
-      estimatedDurationMinutes: 170
+      // já passou bastante → estamos perto do fim
+      scheduledDeparture: createRelativeTimestamp(-90),
+      scheduledArrival: createRelativeTimestamp(15),
+      estimatedDurationMinutes: 105
     },
-    routeDistanceKm: 1650,
+
+    routeDistanceKm: 500,
+
     routeCoordinates: [
       {
-        id: "opo",
-        label: "Porto",
-        coordinates: { latitude: 41.2481, longitude: -8.6814 },
+        id: "lis",
+        label: "Lisbon",
+        coordinates: { latitude: 38.7742, longitude: -9.1342 },
         distanceFromOriginKm: 0
       },
       {
-        id: "northern-spain",
-        label: "Northern Spain",
-        coordinates: { latitude: 42.8169, longitude: -1.6432 },
-        distanceFromOriginKm: 470
+        id: "central-spain",
+        label: "Central Spain",
+        coordinates: { latitude: 39.5, longitude: -6.0 },
+        distanceFromOriginKm: 250
       },
       {
-        id: "western-france",
-        label: "Western France",
-        coordinates: { latitude: 46.5802, longitude: 0.3404 },
-        distanceFromOriginKm: 930
-      },
-      {
-        id: "rhine-approach",
-        label: "Rhine region",
-        coordinates: { latitude: 49.0069, longitude: 8.4037 },
-        distanceFromOriginKm: 1490
-      },
-      {
-        id: "fra",
-        label: "Frankfurt",
-        coordinates: { latitude: 50.0379, longitude: 8.5622 },
-        distanceFromOriginKm: 1650
+        id: "mad",
+        label: "Madrid",
+        coordinates: { latitude: 40.4983, longitude: -3.5676 },
+        distanceFromOriginKm: 500
       }
     ],
+
     checkpoints: [
       {
-        id: "northern-spain-checkpoint",
-        label: "Northern Spain",
-        coordinates: { latitude: 42.8169, longitude: -1.6432 },
-        distanceFromOriginKm: 470,
-        expectedProgressPercent: 28,
-        reassuranceMessageId: "over-checkpoint",
-        metadata: {
-          note: "Example route marker"
-        }
-      },
-      {
-        id: "western-france-checkpoint",
-        label: "Western France",
-        coordinates: { latitude: 46.5802, longitude: 0.3404 },
-        distanceFromOriginKm: 930,
-        expectedProgressPercent: 56,
+        id: "central-spain-checkpoint",
+        label: "Central Spain",
+        coordinates: { latitude: 39.5, longitude: -6.0 },
+        distanceFromOriginKm: 250,
+        expectedProgressPercent: 50,
         reassuranceMessageId: "steady-progress"
       },
       {
-        id: "rhine-region-checkpoint",
-        label: "Rhine region",
-        coordinates: { latitude: 49.0069, longitude: 8.4037 },
-        distanceFromOriginKm: 1490,
+        id: "approach-madrid",
+        label: "Madrid approach",
+        coordinates: { latitude: 40.2, longitude: -3.7 },
+        distanceFromOriginKm: 450,
         expectedProgressPercent: 90,
         reassuranceMessageId: "nearing-destination"
       }
     ]
   }
+
+  
+  
 ];
 
 export function getMockFlightById(id: string): Flight | undefined {

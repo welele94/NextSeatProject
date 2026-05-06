@@ -5,21 +5,56 @@ import {
 import { FlightProgress } from "@/types/flight";
 import { RouteCheckpoint } from "@/types/route";
 
+import { FlightStatus } from "./getFlightStatus";
+
 export function getFlightContextMessage(
-  progress: FlightProgress,
-  currentCheckpoint?: RouteCheckpoint
+  // we will suspend the progress: FlightProgress for now
+ // progress: FlightProgress,  
+  currentCheckpoint?: RouteCheckpoint,
+  nextCheckpoint?: RouteCheckpoint,
+  status?: FlightStatus
 ) {
-  if (progress.isBeforeDeparture) {
+  if (status === "before_departure") {
     return {
-      title: "The route is ready",
-      body: "This view is prepared from saved schedule and route data, so it remains useful without an internet connection."
+      title: "Your flight is prepared",
+      body: "Everything is set from the saved schedule. You can use this view even without an internet connection."
     };
   }
 
-  if (progress.isAfterArrival) {
+  if (status === "early_flight") {
     return {
-      title: "The scheduled route is complete",
-      body: "Based on the saved schedule, this flight has reached the end of its planned time window."
+      title: "The flight has just started",
+      body: "The beginning of a flight can feel busy, but these early adjustments are a normal part of the journey."
+    };
+  }
+
+  if (status === "cruise") {
+    return {
+      title: "You are in the calmest part",
+      body: "The aircraft is simply moving steadily toward the destination. This is usually the most stable part of the flight."
+    };
+  }
+
+  if (status === "late_flight") {
+    return {
+      title: "You are getting closer",
+      body: nextCheckpoint
+        ? `The flight is progressing toward its final phase. The next route marker is ${nextCheckpoint.label}.`
+        : "The flight is progressing toward its final phase. You are getting closer to your destination."
+    };
+  }
+
+  if (status === "arrival_window") {
+    return {
+      title: "Arrival is getting closer",
+      body: "This is a normal transition toward landing. The flight is moving through the final part of its scheduled journey."
+    };
+  }
+
+  if (status === "completed") {
+    return {
+      title: "The scheduled journey is complete",
+      body: "Based on the saved schedule, the flight has reached its destination window."
     };
   }
 
