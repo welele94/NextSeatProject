@@ -56,8 +56,6 @@ export default function FlightDetailScreen() {
       progress.progressPercent
     );
 
-
-
     const status = getFlightStatus(
       progress.progressPercent,
       progress.isBeforeDeparture,
@@ -70,7 +68,7 @@ export default function FlightDetailScreen() {
     );
 
     const message = getFlightContextMessage(
-     // progress,
+      progress,
       currentCheckpoint,
       nextCheckpoint,
       status
@@ -85,10 +83,7 @@ export default function FlightDetailScreen() {
     return {
       progress: {
         ...progress,
-        remainingMinutes: estimateRemainingTime(
-          flight,
-          progress.progressPercent
-        )
+        remainingMinutes
       },
       currentCheckpoint,
       nextCheckpoint,
