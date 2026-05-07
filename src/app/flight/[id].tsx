@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FlightOverviewCard } from "@/components/FlightOverviewCard";
 import { FlightProgressCard } from "@/components/FlightProgressCard";
+import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { ReassuranceCard } from "@/components/ReassuranceCard";
 import { RouteCheckpointList } from "@/components/RouteCheckpointList";
 import { getMockFlightById } from "@/data/mockFlights";
@@ -14,6 +15,7 @@ import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint
 import { getFlightContextMessage } from "@/features/flightCore/getFlightContextMessage";
 import { getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
+import { getNextExpectedMoment } from "@/features/flightCore/getNextExpectedMoment";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 function formatStatusLabel(status: string): string {
@@ -54,18 +56,31 @@ export default function FlightDetailScreen() {
       progress.progressPercent
     );
 
+
+
     const status = getFlightStatus(
       progress.progressPercent,
       progress.isBeforeDeparture,
       progress.isAfterArrival
     );
 
+    const remainingMinutes = estimateRemainingTime(
+      flight,
+      progress.progressPercent
+    );
+
     const message = getFlightContextMessage(
-      progress,
+     // progress,
       currentCheckpoint,
       nextCheckpoint,
       status
     );
+
+    const nextExpectedMoment = getNextExpectedMoment({
+      status,
+      nextCheckpoint,
+      remainingMinutes
+    });
 
     return {
       progress: {
@@ -78,7 +93,8 @@ export default function FlightDetailScreen() {
       currentCheckpoint,
       nextCheckpoint,
       status,
-      message
+      message,
+      nextExpectedMoment
     };
   }, [currentTime, flight]);
 
@@ -104,6 +120,8 @@ export default function FlightDetailScreen() {
           title={flightState.message.title}
           body={flightState.message.body}
         />
+
+        <NextExpectedMomentCard moment={flightState.nextExpectedMoment} />
 
         <Text style={styles.statusLabel}>
           Status: {formatStatusLabel(flightState.status)}
