@@ -68,7 +68,6 @@ export default function FlightDetailScreen() {
     );
 
     const message = getFlightContextMessage(
-      progress,
       currentCheckpoint,
       nextCheckpoint,
       status
