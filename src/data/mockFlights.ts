@@ -55,7 +55,7 @@ export const mockFlights: Flight[] = [
       {
         id: "mad",
         label: "Madrid",
-        coordinates: { latitude: 40.4983, longitude: -3.5676 },
+        coordinates: { latitude: 39.4983, longitude: -3.5676 },
         distanceFromOriginKm: 500
       }
     ],
