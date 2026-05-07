@@ -2,18 +2,16 @@ import {
   fallbackReassuranceMessage,
   reassuranceMessages
 } from "@/data/reassuranceMessages";
-import { FlightProgress } from "@/types/flight";
 import { RouteCheckpoint } from "@/types/route";
 
 import { FlightStatus } from "./getFlightStatus";
 
 export function getFlightContextMessage(
-  progress: FlightProgress,
   currentCheckpoint?: RouteCheckpoint,
   nextCheckpoint?: RouteCheckpoint,
   status?: FlightStatus
 ) {
-  if (status === "before_departure" || progress.isBeforeDeparture) {
+  if (status === "before_departure") {
     return {
       title: "Your flight is prepared",
       body: "Everything is set from the saved schedule. You can use this view even without an internet connection."
@@ -50,7 +48,7 @@ export function getFlightContextMessage(
     };
   }
 
-  if (status === "completed" || progress.isAfterArrival) {
+  if (status === "completed") {
     return {
       title: "The scheduled journey is complete",
       body: "Based on the saved schedule, the flight has reached its destination window."
