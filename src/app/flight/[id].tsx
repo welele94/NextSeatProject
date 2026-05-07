@@ -8,6 +8,7 @@ import { FlightProgressCard } from "@/components/FlightProgressCard";
 import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { ReassuranceCard } from "@/components/ReassuranceCard";
 import { RouteCheckpointList } from "@/components/RouteCheckpointList";
+import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { calculateFlightProgress } from "@/features/flightCore/calculateFlightProgress";
 import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTime";
@@ -16,6 +17,7 @@ import { getFlightContextMessage } from "@/features/flightCore/getFlightContextM
 import { getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
 import { getNextExpectedMoment } from "@/features/flightCore/getNextExpectedMoment";
+import { getSituationMessage } from "@/features/flightCore/getSituationMessage";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 function formatStatusLabel(status: string): string {
@@ -79,6 +81,11 @@ export default function FlightDetailScreen() {
       remainingMinutes
     });
 
+    const situationMessage = getSituationMessage({
+      status,
+      currentCheckpoint
+    });
+
     return {
       progress: {
         ...progress,
@@ -88,7 +95,8 @@ export default function FlightDetailScreen() {
       nextCheckpoint,
       status,
       message,
-      nextExpectedMoment
+      nextExpectedMoment,
+      situationMessage
     };
   }, [currentTime, flight]);
 
@@ -113,6 +121,11 @@ export default function FlightDetailScreen() {
         <ReassuranceCard
           title={flightState.message.title}
           body={flightState.message.body}
+        />
+
+        <SituationInsightCard
+          title={flightState.situationMessage.title}
+          body={flightState.situationMessage.body}
         />
 
         <NextExpectedMomentCard moment={flightState.nextExpectedMoment} />
