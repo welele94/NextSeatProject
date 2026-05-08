@@ -17,34 +17,36 @@ export function getNextExpectedMoment({
   switch (situation) {
     case "descent_expected":
       return {
-        title: "Descent is expected later",
-        body: "The flight is expected to continue toward the final part of the route.",
+        title: "You may notice preparation for arrival soon",
+        body: "The flight should continue steadily, and the next noticeable change may be the gradual transition toward descent.",
         minutesUntil: remainingMinutes
       };
 
     case "arrival_soon":
       return {
-        title: "Arrival is expected soon",
-        body: "The flight is entering its final transition toward landing.",
+        title: "Arrival is the next major moment",
+        body: "The next part of the journey is likely to feel more active as the flight moves toward landing.",
         minutesUntil: remainingMinutes
       };
 
     case "slightly_extended_route":
       return {
-        title: "The route may continue a little longer",
-        body: "Minor route extensions can happen normally during busy traffic periods."
+        title: "The flight should keep progressing calmly",
+        body: "The next few minutes may simply feel like continued steady flight while timing adjusts."
       };
 
     case "holding_pattern_possible":
       return {
-        title: "The flight may remain steady for a while",
-        body: "Longer stable periods can happen during normal traffic organization."
+        title: "A slightly longer arrival path may happen",
+        body: "The aircraft may continue on a calm, extended path before moving into the final arrival stage."
       };
 
     case "stable_progress":
     default:
       return {
-        title: "The route continues normally",
+        title: nextCheckpoint
+          ? `Next: ${nextCheckpoint.label}`
+          : "The route continues normally",
         body: nextCheckpoint
           ? `The flight will continue steadily toward ${nextCheckpoint.label}.`
           : "The flight will continue steadily along the planned route.",
