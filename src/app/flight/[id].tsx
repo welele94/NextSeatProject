@@ -14,10 +14,10 @@ import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTi
 import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
 import { getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
-import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 import { getNextExpectedMoment } from "@/features/interpreter/expectedMoments/getNextExpectedMoment";
-import { getFlightSituation } from "@/features/interpreter/situations/getFlightSituation";
 import { getSituationMessage } from "@/features/interpreter/situations/getSituationMessage";
+import { resolveSituation } from "@/features/interpreter/situations/resolveSituation";
+import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 function formatStatusLabel(status: string): string {
   return status
@@ -68,9 +68,10 @@ export default function FlightDetailScreen() {
       progress.progressPercent
     );
 
-    const situation = getFlightSituation({
+    const situation = resolveSituation({
       flightStatus: status,
-      remainingMinutes
+      remainingMinutes,
+      progressPercent: progress.progressPercent
     });
 
     const situationMessage = getSituationMessage({
