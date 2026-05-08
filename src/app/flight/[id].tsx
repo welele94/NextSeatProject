@@ -9,14 +9,7 @@ import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { RouteCheckpointList } from "@/components/RouteCheckpointList";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
-import { calculateFlightProgress } from "@/features/flightCore/calculateFlightProgress";
-import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTime";
-import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
-import { getFlightStatus } from "@/features/flightCore/getFlightStatus";
-import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
-import { getNextExpectedMoment } from "@/features/interpreter/expectedMoments/getNextExpectedMoment";
-import { getSituationMessage } from "@/features/interpreter/situations/getSituationMessage";
-import { resolveSituation } from "@/features/interpreter/situations/resolveSituation";
+import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapshot";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 function formatStatusLabel(status: string): string {
@@ -40,66 +33,15 @@ export default function FlightDetailScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const flightState = useMemo(() => {
+  const flightSnapshot = useMemo(() => {
     if (!flight) {
       return undefined;
     }
 
-    const progress = calculateFlightProgress(flight, currentTime);
-
-    const currentCheckpoint = getCurrentCheckpoint(
-      flight.checkpoints,
-      progress.progressPercent
-    );
-
-    const nextCheckpoint = getNextCheckpoint(
-      flight.checkpoints,
-      progress.progressPercent
-    );
-
-    const status = getFlightStatus(
-      progress.progressPercent,
-      progress.isBeforeDeparture,
-      progress.isAfterArrival
-    );
-
-    const remainingMinutes = estimateRemainingTime(
-      flight,
-      progress.progressPercent
-    );
-
-    const situation = resolveSituation({
-      flightStatus: status,
-      remainingMinutes,
-      progressPercent: progress.progressPercent
-    });
-
-    const situationMessage = getSituationMessage({
-      situation,
-      currentCheckpoint
-    });
-
-    const nextExpectedMoment = getNextExpectedMoment({
-      situation,
-      nextCheckpoint,
-      remainingMinutes
-    });
-
-    return {
-      progress: {
-        ...progress,
-        remainingMinutes
-      },
-      currentCheckpoint,
-      nextCheckpoint,
-      status,
-      situation,
-      situationMessage,
-      nextExpectedMoment
-    };
+    return buildFlightSnapshot(flight, currentTime);
   }, [currentTime, flight]);
 
-  if (!flight || !flightState) {
+  if (!flight || !flightSnapshot) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <Stack.Screen options={{ title: "Flight not found" }} />
@@ -118,27 +60,29 @@ export default function FlightDetailScreen() {
       <Stack.Screen options={{ title: flight.flightNumber }} />
       <ScrollView contentContainerStyle={styles.content}>
         <SituationInsightCard
-          title={flightState.situationMessage.title}
-          body={flightState.situationMessage.body}
+          title={flightSnapshot.situationMessage.title}
+          body={flightSnapshot.situationMessage.body}
         />
 
-        <NextExpectedMomentCard moment={flightState.nextExpectedMoment} />
+        <NextExpectedMomentCard
+          moment={flightSnapshot.nextExpectedMoment}
+        />
 
         <Text style={styles.statusLabel}>
-          Status: {formatStatusLabel(flightState.status)}
+          Status: {formatStatusLabel(flightSnapshot.status)}
         </Text>
 
         <FlightOverviewCard flight={flight} />
 
         <FlightProgressCard
-          progressPercent={flightState.progress.progressPercent}
-          elapsedMinutes={flightState.progress.elapsedMinutes}
-          remainingMinutes={flightState.progress.remainingMinutes}
+          progressPercent={flightSnapshot.progress.progressPercent}
+          elapsedMinutes={flightSnapshot.progress.elapsedMinutes}
+          remainingMinutes={flightSnapshot.progress.remainingMinutes}
         />
 
         <RouteCheckpointList
-          currentCheckpoint={flightState.currentCheckpoint}
-          nextCheckpoint={flightState.nextCheckpoint}
+          currentCheckpoint={flightSnapshot.currentCheckpoint}
+          nextCheckpoint={flightSnapshot.nextCheckpoint}
         />
       </ScrollView>
     </SafeAreaView>
