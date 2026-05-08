@@ -1,10 +1,10 @@
 import { NextExpectedMoment } from "@/types/nextExpectedMoment";
 import { RouteCheckpoint } from "@/types/route";
 
-import { FlightSituation } from "../situations/types";
+import { SituationType } from "../situations/types";
 
 type GetNextExpectedMomentParams = {
-  situation: FlightSituation;
+  situation: SituationType;
   nextCheckpoint?: RouteCheckpoint;
   remainingMinutes: number;
 };
@@ -41,6 +41,7 @@ export function getNextExpectedMoment({
         body: "Longer stable periods can happen during normal traffic organization."
       };
 
+    case "stable_progress":
     default:
       return {
         title: "The route continues normally",
