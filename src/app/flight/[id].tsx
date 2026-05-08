@@ -6,19 +6,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlightOverviewCard } from "@/components/FlightOverviewCard";
 import { FlightProgressCard } from "@/components/FlightProgressCard";
 import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
-import { ReassuranceCard } from "@/components/ReassuranceCard";
 import { RouteCheckpointList } from "@/components/RouteCheckpointList";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { calculateFlightProgress } from "@/features/flightCore/calculateFlightProgress";
 import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTime";
 import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
-import { getFlightContextMessage } from "@/features/flightCore/getFlightContextMessage";
 import { getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
-import { getNextExpectedMoment } from "@/features/flightCore/getNextExpectedMoment";
-import { getSituationMessage } from "@/features/flightCore/getSituationMessage";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
+import { getNextExpectedMoment } from "@/features/interpreter/expectedMoments/getNextExpectedMoment";
+import { getFlightSituation } from "@/features/interpreter/situations/getFlightSituation";
+import { getSituationMessage } from "@/features/interpreter/situations/getSituationMessage";
 
 function formatStatusLabel(status: string): string {
   return status
@@ -69,21 +68,20 @@ export default function FlightDetailScreen() {
       progress.progressPercent
     );
 
-    const message = getFlightContextMessage(
-      currentCheckpoint,
-      nextCheckpoint,
-      status
-    );
-
-    const nextExpectedMoment = getNextExpectedMoment({
-      status,
-      nextCheckpoint,
+    const situation = getFlightSituation({
+      flightStatus: status,
       remainingMinutes
     });
 
     const situationMessage = getSituationMessage({
-      status,
+      situation,
       currentCheckpoint
+    });
+
+    const nextExpectedMoment = getNextExpectedMoment({
+      situation,
+      nextCheckpoint,
+      remainingMinutes
     });
 
     return {
@@ -94,9 +92,9 @@ export default function FlightDetailScreen() {
       currentCheckpoint,
       nextCheckpoint,
       status,
-      message,
-      nextExpectedMoment,
-      situationMessage
+      situation,
+      situationMessage,
+      nextExpectedMoment
     };
   }, [currentTime, flight]);
 
@@ -118,11 +116,6 @@ export default function FlightDetailScreen() {
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ title: flight.flightNumber }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <ReassuranceCard
-          title={flightState.message.title}
-          body={flightState.message.body}
-        />
-
         <SituationInsightCard
           title={flightState.situationMessage.title}
           body={flightState.situationMessage.body}
