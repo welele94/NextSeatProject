@@ -1,9 +1,9 @@
 import { RouteCheckpoint } from "@/types/route";
 
-import { FlightSituation } from "./types";
+import { SituationType } from "./types";
 
 type GetSituationMessageParams = {
-  situation: FlightSituation;
+  situation: SituationType;
   currentCheckpoint?: RouteCheckpoint;
 };
 
@@ -41,6 +41,7 @@ export function getSituationMessage({
         body: "Longer periods of stable flight are common and do not necessarily mean anything unusual."
       };
 
+    case "stable_progress":
     default:
       return {
         title: "The flight is progressing normally",
