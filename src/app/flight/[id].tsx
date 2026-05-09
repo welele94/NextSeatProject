@@ -3,21 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { FlightOverviewCard } from "@/components/FlightOverviewCard";
-import { FlightProgressCard } from "@/components/FlightProgressCard";
+import { AmbientGlobe } from "@/components/AmbientGlobe";
 import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
-import { RouteCheckpointList } from "@/components/RouteCheckpointList";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapshot";
+import { formatMinutes } from "@/features/time/formatMinutes";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
-
-function formatStatusLabel(status: string): string {
-  return status
-    .split("_")
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(" ");
-}
 
 export default function FlightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,33 +49,44 @@ export default function FlightDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: flight.flightNumber }} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <SituationInsightCard
-          title={flightSnapshot.situationMessage.title}
-          body={flightSnapshot.situationMessage.body}
-        />
+      <Stack.Screen options={{ headerShown: false }} />
 
-        <NextExpectedMomentCard
-          moment={flightSnapshot.nextExpectedMoment}
-        />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroSection}>
+          <Text style={styles.routeLabel}>
+            {flight.origin.city} → {flight.destination.city}
+          </Text>
 
-        <Text style={styles.statusLabel}>
-          Status: {formatStatusLabel(flightSnapshot.status)}
-        </Text>
+          <AmbientGlobe
+            progressPercent={flightSnapshot.progress.progressPercent}
+          />
 
-        <FlightOverviewCard flight={flight} />
+          <View style={styles.primaryMessageBlock}>
+            <Text style={styles.primaryTitle}>
+              {flightSnapshot.situationMessage.title}
+            </Text>
 
-        <FlightProgressCard
-          progressPercent={flightSnapshot.progress.progressPercent}
-          elapsedMinutes={flightSnapshot.progress.elapsedMinutes}
-          remainingMinutes={flightSnapshot.progress.remainingMinutes}
-        />
+            <Text style={styles.primaryBody}>
+              {flightSnapshot.situationMessage.body}
+            </Text>
+          </View>
+        </View>
 
-        <RouteCheckpointList
-          currentCheckpoint={flightSnapshot.currentCheckpoint}
-          nextCheckpoint={flightSnapshot.nextCheckpoint}
-        />
+        <View style={styles.secondarySection}>
+          <NextExpectedMomentCard
+            moment={flightSnapshot.nextExpectedMoment}
+          />
+
+          <SituationInsightCard
+            title="Journey progress"
+            body={`About ${formatMinutes(
+              flightSnapshot.progress.remainingMinutes
+            )} remaining in the scheduled journey.`}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -95,13 +98,41 @@ const styles = StyleSheet.create({
     backgroundColor: "#F6F7F9"
   },
   content: {
-    gap: 14,
-    padding: 20
+    paddingBottom: 80
   },
-  statusLabel: {
-    color: "#5A6673",
-    fontSize: 13,
-    fontWeight: "600"
+  heroSection: {
+    paddingTop: 28,
+    paddingHorizontal: 28,
+    gap: 28
+  },
+  routeLabel: {
+    color: "#7A8A96",
+    fontSize: 14,
+    letterSpacing: 1,
+    textAlign: "center",
+    textTransform: "uppercase"
+  },
+  primaryMessageBlock: {
+    gap: 18,
+    paddingHorizontal: 4
+  },
+  primaryTitle: {
+    color: "#102331",
+    fontSize: 36,
+    fontWeight: "300",
+    lineHeight: 46,
+    textAlign: "center"
+  },
+  primaryBody: {
+    color: "#5D6B76",
+    fontSize: 17,
+    lineHeight: 28,
+    textAlign: "center"
+  },
+  secondarySection: {
+    gap: 18,
+    marginTop: 42,
+    paddingHorizontal: 20
   },
   emptyState: {
     flex: 1,
