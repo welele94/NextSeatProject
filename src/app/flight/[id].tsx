@@ -11,6 +11,87 @@ import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapsh
 import { formatMinutes } from "@/features/time/formatMinutes";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
+type FlightRhythmState =
+  | "active_transition"
+  | "calm_cruise"
+  | "arrival_guidance"
+  | "extended_wait";
+
+type RhythmPresentation = {
+  screenBackground: string;
+  heroGap: number;
+  heroPaddingTop: number;
+  globeScale: number;
+  globeOpacity: number;
+  primaryTitleSize: number;
+  primaryTitleLineHeight: number;
+  primaryBodyOpacity: number;
+  secondaryGap: number;
+  secondaryMarginTop: number;
+  nextMomentWrapperStyle: object;
+};
+
+const rhythmPresentation: Record<FlightRhythmState, RhythmPresentation> = {
+  calm_cruise: {
+    screenBackground: "#F7F8F8",
+    heroGap: 34,
+    heroPaddingTop: 34,
+    globeScale: 0.96,
+    globeOpacity: 0.78,
+    primaryTitleSize: 34,
+    primaryTitleLineHeight: 45,
+    primaryBodyOpacity: 0.76,
+    secondaryGap: 22,
+    secondaryMarginTop: 54,
+    nextMomentWrapperStyle: styles.quietMoment
+  },
+  active_transition: {
+    screenBackground: "#F6F7F9",
+    heroGap: 28,
+    heroPaddingTop: 28,
+    globeScale: 1,
+    globeOpacity: 0.88,
+    primaryTitleSize: 35,
+    primaryTitleLineHeight: 46,
+    primaryBodyOpacity: 0.84,
+    secondaryGap: 18,
+    secondaryMarginTop: 44,
+    nextMomentWrapperStyle: styles.standardMoment
+  },
+  arrival_guidance: {
+    screenBackground: "#F6F8F8",
+    heroGap: 26,
+    heroPaddingTop: 24,
+    globeScale: 1.02,
+    globeOpacity: 0.92,
+    primaryTitleSize: 36,
+    primaryTitleLineHeight: 46,
+    primaryBodyOpacity: 0.88,
+    secondaryGap: 16,
+    secondaryMarginTop: 34,
+    nextMomentWrapperStyle: styles.guidedMoment
+  },
+  extended_wait: {
+    screenBackground: "#F8F8F6",
+    heroGap: 36,
+    heroPaddingTop: 36,
+    globeScale: 0.94,
+    globeOpacity: 0.7,
+    primaryTitleSize: 33,
+    primaryTitleLineHeight: 44,
+    primaryBodyOpacity: 0.72,
+    secondaryGap: 24,
+    secondaryMarginTop: 58,
+    nextMomentWrapperStyle: styles.quietMoment
+  }
+};
+
+function getSnapshotRhythm(snapshot: unknown): FlightRhythmState {
+  const rhythm = (snapshot as { rhythm?: FlightRhythmState }).rhythm;
+
+  return rhythm ?? "calm_cruise";
+}
+
 export default function FlightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
@@ -47,38 +128,90 @@ export default function FlightDetailScreen() {
     );
   }
 
+  const rhythm = getSnapshotRhythm(flightSnapshot);
+  const presentation = rhythmPresentation[rhythm];
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        { backgroundColor: presentation.screenBackground }
+      ]}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { backgroundColor: presentation.screenBackground }
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroSection}>
+        <View
+          style={[
+            styles.heroSection,
+            {
+              gap: presentation.heroGap,
+              paddingTop: presentation.heroPaddingTop
+            }
+          ]}
+        >
           <Text style={styles.routeLabel}>
             {flight.origin.city} → {flight.destination.city}
           </Text>
 
-          <AmbientGlobe
-            progressPercent={flightSnapshot.progress.progressPercent}
-          />
+          <View
+            style={[
+              styles.globeFrame,
+              {
+                opacity: presentation.globeOpacity,
+                transform: [{ scale: presentation.globeScale }]
+              }
+            ]}
+          >
+            <AmbientGlobe
+              progressPercent={flightSnapshot.progress.progressPercent}
+            />
+          </View>
 
           <View style={styles.primaryMessageBlock}>
-            <Text style={styles.primaryTitle}>
+            <Text
+              style={[
+                styles.primaryTitle,
+                {
+                  fontSize: presentation.primaryTitleSize,
+                  lineHeight: presentation.primaryTitleLineHeight
+                }
+              ]}
+            >
               {flightSnapshot.situationMessage.title}
             </Text>
 
-            <Text style={styles.primaryBody}>
+            <Text
+              style={[
+                styles.primaryBody,
+                { opacity: presentation.primaryBodyOpacity }
+              ]}
+            >
               {flightSnapshot.situationMessage.body}
             </Text>
           </View>
         </View>
 
-        <View style={styles.secondarySection}>
-          <NextExpectedMomentCard
-            moment={flightSnapshot.nextExpectedMoment}
-          />
+        <View
+          style={[
+            styles.secondarySection,
+            {
+              gap: presentation.secondaryGap,
+              marginTop: presentation.secondaryMarginTop
+            }
+          ]}
+        >
+          <View style={presentation.nextMomentWrapperStyle}>
+            <NextExpectedMomentCard
+              moment={flightSnapshot.nextExpectedMoment}
+            />
+          </View>
 
           <SituationInsightCard
             title="Journey progress"
@@ -98,19 +231,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#F6F7F9"
   },
   content: {
-    paddingBottom: 80
+    paddingBottom: 92
   },
   heroSection: {
-    paddingTop: 28,
-    paddingHorizontal: 28,
-    gap: 28
+    paddingHorizontal: 28
   },
   routeLabel: {
     color: "#7A8A96",
-    fontSize: 14,
+    fontSize: 13,
     letterSpacing: 1,
     textAlign: "center",
     textTransform: "uppercase"
+  },
+  globeFrame: {
+    alignItems: "center"
   },
   primaryMessageBlock: {
     gap: 18,
@@ -118,9 +252,7 @@ const styles = StyleSheet.create({
   },
   primaryTitle: {
     color: "#102331",
-    fontSize: 36,
     fontWeight: "300",
-    lineHeight: 46,
     textAlign: "center"
   },
   primaryBody: {
@@ -130,9 +262,18 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   secondarySection: {
-    gap: 18,
-    marginTop: 42,
     paddingHorizontal: 20
+  },
+  quietMoment: {
+    opacity: 0.82,
+    transform: [{ scale: 0.985 }]
+  },
+  standardMoment: {
+    opacity: 0.92
+  },
+  guidedMoment: {
+    opacity: 1,
+    transform: [{ scale: 1.01 }]
   },
   emptyState: {
     flex: 1,
