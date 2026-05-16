@@ -31,61 +31,6 @@ type RhythmPresentation = {
   nextMomentWrapperStyle: object;
 };
 
-const rhythmPresentation: Record<FlightRhythmState, RhythmPresentation> = {
-  calm_cruise: {
-    screenBackground: "#F7F8F8",
-    heroGap: 34,
-    heroPaddingTop: 34,
-    globeScale: 0.96,
-    globeOpacity: 0.78,
-    primaryTitleSize: 34,
-    primaryTitleLineHeight: 45,
-    primaryBodyOpacity: 0.76,
-    secondaryGap: 22,
-    secondaryMarginTop: 54,
-    nextMomentWrapperStyle: styles.quietMoment
-  },
-  active_transition: {
-    screenBackground: "#F6F7F9",
-    heroGap: 28,
-    heroPaddingTop: 28,
-    globeScale: 1,
-    globeOpacity: 0.88,
-    primaryTitleSize: 35,
-    primaryTitleLineHeight: 46,
-    primaryBodyOpacity: 0.84,
-    secondaryGap: 18,
-    secondaryMarginTop: 44,
-    nextMomentWrapperStyle: styles.standardMoment
-  },
-  arrival_guidance: {
-    screenBackground: "#F6F8F8",
-    heroGap: 26,
-    heroPaddingTop: 24,
-    globeScale: 1.02,
-    globeOpacity: 0.92,
-    primaryTitleSize: 36,
-    primaryTitleLineHeight: 46,
-    primaryBodyOpacity: 0.88,
-    secondaryGap: 16,
-    secondaryMarginTop: 34,
-    nextMomentWrapperStyle: styles.guidedMoment
-  },
-  extended_wait: {
-    screenBackground: "#F8F8F6",
-    heroGap: 36,
-    heroPaddingTop: 36,
-    globeScale: 0.94,
-    globeOpacity: 0.7,
-    primaryTitleSize: 33,
-    primaryTitleLineHeight: 44,
-    primaryBodyOpacity: 0.72,
-    secondaryGap: 24,
-    secondaryMarginTop: 58,
-    nextMomentWrapperStyle: styles.quietMoment
-  }
-};
-
 function getSnapshotRhythm(snapshot: unknown): FlightRhythmState {
   const rhythm = (snapshot as { rhythm?: FlightRhythmState }).rhythm;
 
@@ -292,3 +237,58 @@ const styles = StyleSheet.create({
     lineHeight: 23
   }
 });
+
+const rhythmPresentation: Record<FlightRhythmState, RhythmPresentation> = {
+  calm_cruise: {
+    screenBackground: "#F7F8F8",
+    heroGap: 34,
+    heroPaddingTop: 34,
+    globeScale: 0.96,
+    globeOpacity: 0.78,
+    primaryTitleSize: 34,
+    primaryTitleLineHeight: 45,
+    primaryBodyOpacity: 0.76,
+    secondaryGap: 22,
+    secondaryMarginTop: 54,
+    nextMomentWrapperStyle: styles.quietMoment
+  },
+  active_transition: {
+    screenBackground: "#F6F7F9",
+    heroGap: 28,
+    heroPaddingTop: 28,
+    globeScale: 1,
+    globeOpacity: 0.88,
+    primaryTitleSize: 35,
+    primaryTitleLineHeight: 46,
+    primaryBodyOpacity: 0.84,
+    secondaryGap: 18,
+    secondaryMarginTop: 44,
+    nextMomentWrapperStyle: styles.standardMoment
+  },
+  arrival_guidance: {
+    screenBackground: "#F6F8F8",
+    heroGap: 26,
+    heroPaddingTop: 24,
+    globeScale: 1.02,
+    globeOpacity: 0.92,
+    primaryTitleSize: 36,
+    primaryTitleLineHeight: 46,
+    primaryBodyOpacity: 0.88,
+    secondaryGap: 16,
+    secondaryMarginTop: 34,
+    nextMomentWrapperStyle: styles.guidedMoment
+  },
+  extended_wait: {
+    screenBackground: "#F8F8F6",
+    heroGap: 36,
+    heroPaddingTop: 36,
+    globeScale: 0.94,
+    globeOpacity: 0.7,
+    primaryTitleSize: 33,
+    primaryTitleLineHeight: 44,
+    primaryBodyOpacity: 0.72,
+    secondaryGap: 24,
+    secondaryMarginTop: 58,
+    nextMomentWrapperStyle: styles.quietMoment
+  }
+};
