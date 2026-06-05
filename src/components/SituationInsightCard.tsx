@@ -3,15 +3,17 @@ import { StyleSheet, Text, View } from "react-native";
 type SituationInsightCardProps = {
   title: string;
   body: string;
+  label?: string;
 };
 
 export function SituationInsightCard({
   title,
-  body
+  body,
+  label = "Current situation"
 }: SituationInsightCardProps) {
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Current situation</Text>
+      <Text style={styles.label}>{label}</Text>
 
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
@@ -24,29 +26,30 @@ export function SituationInsightCard({
 const styles = StyleSheet.create({
   card: {
     gap: 14,
-    padding: 18,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.035)",
     borderWidth: 1,
-    borderColor: "#E2E8EF"
+    borderColor: "rgba(255, 255, 255, 0.14)"
   },
   label: {
-    color: "#5A6673",
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#8FA1AD",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
     textTransform: "uppercase"
   },
   content: {
-    gap: 6
+    gap: 8
   },
   title: {
-    color: "#102331",
+    color: "#F4FAFC",
     fontSize: 18,
     fontWeight: "700"
   },
   body: {
-    color: "#4C5B68",
+    color: "#B7C4CB",
     fontSize: 15,
-    lineHeight: 22
+    lineHeight: 23
   }
 });
