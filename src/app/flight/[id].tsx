@@ -1,6 +1,6 @@
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AmbientGlobe } from "@/components/AmbientGlobe";
@@ -8,14 +8,9 @@ import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapshot";
+import { FlightRhythmState } from "@/features/rhythm/types";
 import { formatMinutes } from "@/features/time/formatMinutes";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
-
-type FlightRhythmState =
-  | "active_transition"
-  | "calm_cruise"
-  | "arrival_guidance"
-  | "extended_wait";
 
 type RhythmPresentation = {
   screenBackground: string;
@@ -30,12 +25,6 @@ type RhythmPresentation = {
   secondaryMarginTop: number;
   nextMomentWrapperStyle: object;
 };
-
-function getSnapshotRhythm(snapshot: unknown): FlightRhythmState {
-  const rhythm = (snapshot as { rhythm?: FlightRhythmState }).rhythm;
-
-  return rhythm ?? "calm_cruise";
-}
 
 export default function FlightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -73,8 +62,7 @@ export default function FlightDetailScreen() {
     );
   }
 
-  const rhythm = getSnapshotRhythm(flightSnapshot);
-  const presentation = rhythmPresentation[rhythm];
+  const presentation = rhythmPresentation[flightSnapshot.rhythm];
 
   return (
     <SafeAreaView
@@ -84,6 +72,19 @@ export default function FlightDetailScreen() {
       ]}
     >
       <Stack.Screen options={{ headerShown: false }} />
+
+      <View style={styles.navigationBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back to flight list"
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Text style={styles.backButtonText}>← Back</Text>
+        </Pressable>
+        <Text style={styles.navigationTitle}>{flight.flightNumber}</Text>
+        <View style={styles.navigationSpacer} />
+      </View>
 
       <ScrollView
         contentContainerStyle={[
@@ -174,6 +175,33 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6F7F9"
+  },
+  navigationBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 8
+  },
+  backButton: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  backButtonText: {
+    color: "#314452",
+    fontSize: 15,
+    fontWeight: "600"
+  },
+  navigationTitle: {
+    color: "#102331",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.4
+  },
+  navigationSpacer: {
+    width: 62
   },
   content: {
     paddingBottom: 92
