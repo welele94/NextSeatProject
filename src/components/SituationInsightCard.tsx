@@ -1,70 +1,103 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type SituationInsightCardProps = {
   title: string;
   body: string;
   label?: string;
+  initiallyExpanded?: boolean;
 };
 
-function getDisplayContent(title: string, body: string) {
-  if (title === "Journey progress") {
-    return {
-      title: "Current situation",
-      body: body.replace(
-        "remaining in the scheduled journey.",
-        "left in this part of the journey. The flight is continuing steadily."
-      )
-    };
-  }
 
-  return { title, body };
-}
 
 export function SituationInsightCard({
   title,
   body,
-  label = "Current situation"
+  label = "Why is this happening?",
+  initiallyExpanded = false
 }: SituationInsightCardProps) {
-  const displayContent = getDisplayContent(title, body);
-
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>{label}</Text>
+      <Pressable 
+        onPress={() => setIsExpanded((current) => !current)}
+        style={styles.header}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}. Tap to ${isExpanded ? "collapse" : "expand"}`}
+      >
+        <View style={styles.headerText}>
+          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.title}>{title}</Text>
+        </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{displayContent.title}</Text>
-        <Text style={styles.body}>{displayContent.body}</Text>
-      </View>
+        <Text style={styles.expandIcon}>
+          {isExpanded ? "-" : "+"}
+        </Text>
+      </Pressable>
+
+      {isExpanded? (
+        <Text style={styles.body}>{body}</Text>
+      ) : (
+        <Text style={styles.preview} numberOfLines={2}>
+          {body}
+        </Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: 14,
-    padding: 20,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.035)",
+    gap: 12,
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.14)"
+    borderColor: "rgba(210, 222, 230, 0.72)"
   },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start", 
+    justifyContent: "space-between",
+    gap: 16
+  },
+  headerText: {
+    flex: 1,
+    gap: 6
+  },
+
   label: {
-    color: "#8FA1AD",
+    color: "#7A8A96",
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
     letterSpacing: 0.8,
     textTransform: "uppercase"
   },
   content: {
     gap: 8
   },
+
+  expandIcon: {
+    color: "#2e7d7b",
+    fontSize: 24,
+    fontWeight: "500",
+    lineHeight: 26
+  },
+
   title: {
-    color: "#F4FAFC",
+    color: "#102331",
     fontSize: 18,
-    fontWeight: "700"
+    fontWeight: "700",
+    lineHeight: 24
   },
   body: {
-    color: "#B7C4CB",
+    color: "#4D5F6B",
+    fontSize: 15,
+    lineHeight: 24
+  },
+  preview: {
+    color: "#6b7b86",
     fontSize: 15,
     lineHeight: 23
   }
