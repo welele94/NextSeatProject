@@ -178,14 +178,14 @@ export default function FlightDetailScreen() {
           <View style={presentation.nextMomentWrapperStyle}>
             <NextExpectedMomentCard
               moment={flightSnapshot.nextExpectedMoment}
+              initiallyExpanded
             />
           </View>
 
           <SituationInsightCard
-            title="Journey progress"
-            body={`About ${formatMinutes(
-              flightSnapshot.progress.remainingMinutes
-            )} remaining in the scheduled journey.`}
+            label="Why is this happening?"
+            title={flightSnapshot.situationMessage.title}
+            body={`${flightSnapshot.situationMessage.body} About ${formatMinutes(flightSnapshot.progress.remainingMinutes)} remains in the scheduled journey.`}
           />
         </View>
       </ScrollView>
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     paddingBottom: 92
   },
   heroSection: {
-    paddingHorizontal: 28
+    paddingHorizontal: 24
   },
   routeLabel: {
     color: "#7A8A96",
@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   primaryMessageBlock: {
-    gap: 18,
-    paddingHorizontal: 4
+    gap: 14,
+    paddingHorizontal: 2
   },
   primaryTitle: {
     color: "#102331",
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
   },
   primaryBody: {
     color: "#5D6B76",
-    fontSize: 17,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 26,
     textAlign: "center"
   },
   secondarySection: {
-    paddingHorizontal: 20
+    paddingHorizontal: 18
   },
   quietMoment: {
     opacity: 0.8,
@@ -283,54 +283,54 @@ const styles = StyleSheet.create({
 const rhythmPresentation: Record<FlightRhythmState, RhythmPresentation> = {
   calm_cruise: {
     screenBackground: "#F7F8F8",
-    heroGap: 26,
+    heroGap: 24,
     heroPaddingTop: 24,
-    globeScale: 0.62,
+    globeScale: 0.58,
     globeOpacity: 0.68,
-    primaryTitleSize: 33,
-    primaryTitleLineHeight: 43,
+    primaryTitleSize: 31,
+    primaryTitleLineHeight: 40,
     primaryBodyOpacity: 0.74,
-    secondaryGap: 24,
-    secondaryMarginTop: 46,
+    secondaryGap: 18,
+    secondaryMarginTop: 34,
     nextMomentWrapperStyle: styles.quietMoment
   },
   active_transition: {
     screenBackground: "#F6F7F9",
-    heroGap: 24,
-    heroPaddingTop: 22,
-    globeScale: 0.68,
+    heroGap: 22,
+    heroPaddingTop: 18,
+    globeScale: 0.64,
     globeOpacity: 0.82,
-    primaryTitleSize: 35,
-    primaryTitleLineHeight: 45,
+    primaryTitleSize: 32,
+    primaryTitleLineHeight: 41,
     primaryBodyOpacity: 0.86,
-    secondaryGap: 18,
-    secondaryMarginTop: 36,
+    secondaryGap: 16,
+    secondaryMarginTop: 30,
     nextMomentWrapperStyle: styles.standardMoment
   },
   arrival_guidance: {
     screenBackground: "#F6F8F8",
-    heroGap: 22,
-    heroPaddingTop: 20,
-    globeScale: 0.72,
+    heroGap: 20,
+    heroPaddingTop: 16,
+    globeScale: 0.68,
     globeOpacity: 0.9,
-    primaryTitleSize: 36,
-    primaryTitleLineHeight: 46,
+    primaryTitleSize: 33,
+    primaryTitleLineHeight: 42,
     primaryBodyOpacity: 0.92,
-    secondaryGap: 15,
-    secondaryMarginTop: 30,
+    secondaryGap: 14,
+    secondaryMarginTop: 26,
     nextMomentWrapperStyle: styles.guidedMoment
   },
   extended_wait: {
     screenBackground: "#F8F8F6",
-    heroGap: 30,
-    heroPaddingTop: 28,
-    globeScale: 0.6,
+    heroGap: 26,
+    heroPaddingTop: 22,
+    globeScale: 0.56,
     globeOpacity: 0.58,
-    primaryTitleSize: 32,
-    primaryTitleLineHeight: 42,
+    primaryTitleSize: 30,
+    primaryTitleLineHeight: 39,
     primaryBodyOpacity: 0.72,
-    secondaryGap: 26,
-    secondaryMarginTop: 52,
+    secondaryGap: 20,
+    secondaryMarginTop: 38,
     nextMomentWrapperStyle: styles.waitingMoment
   }
 };
