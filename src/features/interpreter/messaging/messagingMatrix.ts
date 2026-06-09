@@ -7,20 +7,20 @@ export const messagingMatrix: Record<SituationType, SituationMessaging> = {
     heroTitle: "The flight is continuing calmly",
     heroBody: "The journey is moving steadily onward.",
     nextTitle: "The route continues normally",
-    nextBody: "The flight should keep following the planned journey rhythm.",
+    nextBody: "The next useful moment is simply continued steady progress.",
     expandable: {
-      learnMore: "This is the quiet middle part of the journey. There may not be much to notice, and that is okay.",
-      whyThisHappens: "Most flights spend a long time simply continuing along the route.",
-      whatToExpect: "You can expect the flight to remain steady until the next useful moment appears."
+      learnMore: "This is the quiet part of the journey. There may not be much to notice, and that is usually a good sign.",
+      whyThisHappens: "Most flights spend a long period simply continuing along the planned route.",
+      whatToExpect: "You can expect the flight to remain steady until the next meaningful moment appears."
     }
   },
   descent_expected: {
     heroTitle: "Preparing for the final part",
-    heroBody: "The journey is moving toward arrival. Changes may feel more noticeable here.",
-    nextTitle: "Arrival preparation comes next",
-    nextBody: "The next useful moment is the gradual move toward the final part of the journey.",
+    heroBody: "The journey is moving toward arrival. Some changes may become easier to notice.",
+    nextTitle: "The final part comes next",
+    nextBody: "The flight should gradually move from steady travel into arrival preparation.",
     expandable: {
-      learnMore: "This part helps bridge the calm middle of the flight and the arrival phase.",
+      learnMore: "This moment connects the calm middle of the flight with the later arrival phase.",
       whyThisHappens: "As the destination gets closer, the journey naturally becomes a little more active.",
       whatToExpect: "You may notice small changes in sound, direction, or movement as the flight continues."
     }
@@ -29,11 +29,11 @@ export const messagingMatrix: Record<SituationType, SituationMessaging> = {
     heroTitle: "You are getting close",
     heroBody: "Most of the journey is behind you. The flight is entering its final scheduled window.",
     nextTitle: "Arrival is the next major moment",
-    nextBody: "The next part may feel more active as the journey moves toward landing.",
+    nextBody: "The next part may feel more guided as the journey moves toward landing.",
     expandable: {
       learnMore: "The final part of a flight often has more noticeable changes than the middle.",
-      whyThisHappens: "The aircraft is being guided toward the destination area.",
-      whatToExpect: "You can expect a more guided feeling as the flight moves through the final minutes."
+      whyThisHappens: "The flight is being guided toward the destination area.",
+      whatToExpect: "You can expect a more guided feeling as the journey moves through the final minutes."
     }
   },
   slightly_extended_route: {
@@ -42,7 +42,7 @@ export const messagingMatrix: Record<SituationType, SituationMessaging> = {
     nextTitle: "The flight should keep progressing calmly",
     nextBody: "The next few minutes may simply feel like continued steady flight while timing adjusts.",
     expandable: {
-      learnMore: "Small timing changes can happen during normal flights.",
+      learnMore: "Small timing changes can happen during ordinary flights.",
       whyThisHappens: "Flights may take slightly different paths or spend more time in one part of the route.",
       whatToExpect: "The experience should remain steady while the journey continues."
     }
