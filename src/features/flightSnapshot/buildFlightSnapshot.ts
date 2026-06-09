@@ -11,12 +11,9 @@ import { getSituationMessage, SituationMessage } from "@/features/interpreter/si
 import { resolveSituation } from "@/features/interpreter/situations/resolveSituation";
 import { SituationType } from "@/features/interpreter/situations/types";
 import { resolveRhythmState } from "@/features/rhythm/resolveRhythmState";
+import { FlightRhythmState } from "@/features/rhythm/types";
 import { EnvironmentContext } from "@/types/environment";
 import { NextExpectedMoment } from "@/types/nextExpectedMoment";
-import {
-  FlightRhythmState,
-  resolveFlightRhythm
-} from "@/features/rhythm/resolveFlightRhythm"
 
 const emptyEnvironmentContext: EnvironmentContext = {};
 
@@ -40,9 +37,7 @@ function estimateDelayMinutes(progress: FlightProgress): number | undefined {
 
   const scheduleRemainingMinutes = progress.remainingMinutes;
   const progressBasedRemainingMinutes = Math.max(
-    Math.round(
-      progress.elapsedMinutes * (1 - progress.progressPercent / 100)
-    ),
+    Math.round(progress.elapsedMinutes * (1 - progress.progressPercent / 100)),
     0
   );
 
@@ -91,8 +86,13 @@ export function buildFlightSnapshot(
     delayedMinutes
   });
 
-  const rhythm = resolveFlightRhythm(situation);
-  
+  const rhythm = resolveRhythmState({
+    flightStatus: status,
+    situation,
+    remainingMinutes: progress.remainingMinutes,
+    progressPercent: progress.progressPercent
+  });
+
   const situationMessage = getSituationMessage({
     situation,
     currentCheckpoint
