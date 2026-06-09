@@ -1,6 +1,12 @@
-import { Stack, router, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AmbientGlobe } from "@/components/AmbientGlobe";
@@ -8,7 +14,7 @@ import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapshot";
-import { FlightRhythmState } from "@/features/rhythm/types";
+import { FlightRhythmState } from "@/features/rhythm/resolveFlightRhythm";
 import { formatMinutes } from "@/features/time/formatMinutes";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
@@ -27,6 +33,7 @@ type RhythmPresentation = {
 };
 
 export default function FlightDetailScreen() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
   const flight = getMockFlightById(id);
@@ -48,10 +55,29 @@ export default function FlightDetailScreen() {
     return buildFlightSnapshot(flight, currentTime);
   }, [currentTime, flight]);
 
+  function handleBackPress() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/");
+  }
+
   if (!flight || !flightSnapshot) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Stack.Screen options={{ title: "Flight not found" }} />
+        <Stack.Screen options={{ headerShown: false }} />
+
+        <Pressable
+          onPress={handleBackPress}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Text style={styles.backButtonText}>‹ Back</Text>
+        </Pressable>
+
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Flight not found</Text>
           <Text style={styles.emptyText}>
@@ -73,18 +99,14 @@ export default function FlightDetailScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.navigationBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back to flight list"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </Pressable>
-        <Text style={styles.navigationTitle}>{flight.flightNumber}</Text>
-        <View style={styles.navigationSpacer} />
-      </View>
+      <Pressable
+        onPress={handleBackPress}
+        style={styles.backButton}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
+        <Text style={styles.backButtonText}>‹ Back</Text>
+      </Pressable>
 
       <ScrollView
         contentContainerStyle={[
@@ -176,32 +198,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F6F7F9"
   },
-  navigationBar: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingTop: 6,
-    paddingBottom: 8
-  },
   backButton: {
+    alignSelf: "flex-start",
+    marginLeft: 20,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 8
+    backgroundColor: "rgba(255, 255, 255, 0.72)"
   },
   backButtonText: {
-    color: "#314452",
+    color: "#41515F",
     fontSize: 15,
-    fontWeight: "600"
-  },
-  navigationTitle: {
-    color: "#102331",
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: 0.4
-  },
-  navigationSpacer: {
-    width: 62
+    fontWeight: "700"
   },
   content: {
     paddingBottom: 92
@@ -238,15 +248,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20
   },
   quietMoment: {
-    opacity: 0.82,
-    transform: [{ scale: 0.985 }]
+    opacity: 0.8,
+    transform: [{ scale: 0.97 }]
   },
   standardMoment: {
     opacity: 0.92
   },
   guidedMoment: {
     opacity: 1,
-    transform: [{ scale: 1.01 }]
+    transform: [{ scale: 1.015 }]
+  },
+  waitingMoment: {
+    opacity: 0.84,
+    transform: [{ scale: 0.965 }]
   },
   emptyState: {
     flex: 1,
@@ -269,54 +283,54 @@ const styles = StyleSheet.create({
 const rhythmPresentation: Record<FlightRhythmState, RhythmPresentation> = {
   calm_cruise: {
     screenBackground: "#F7F8F8",
-    heroGap: 34,
-    heroPaddingTop: 34,
-    globeScale: 0.96,
-    globeOpacity: 0.78,
-    primaryTitleSize: 34,
-    primaryTitleLineHeight: 45,
-    primaryBodyOpacity: 0.76,
-    secondaryGap: 22,
-    secondaryMarginTop: 54,
+    heroGap: 26,
+    heroPaddingTop: 24,
+    globeScale: 0.62,
+    globeOpacity: 0.68,
+    primaryTitleSize: 33,
+    primaryTitleLineHeight: 43,
+    primaryBodyOpacity: 0.74,
+    secondaryGap: 24,
+    secondaryMarginTop: 46,
     nextMomentWrapperStyle: styles.quietMoment
   },
   active_transition: {
     screenBackground: "#F6F7F9",
-    heroGap: 28,
-    heroPaddingTop: 28,
-    globeScale: 1,
-    globeOpacity: 0.88,
+    heroGap: 24,
+    heroPaddingTop: 22,
+    globeScale: 0.68,
+    globeOpacity: 0.82,
     primaryTitleSize: 35,
-    primaryTitleLineHeight: 46,
-    primaryBodyOpacity: 0.84,
+    primaryTitleLineHeight: 45,
+    primaryBodyOpacity: 0.86,
     secondaryGap: 18,
-    secondaryMarginTop: 44,
+    secondaryMarginTop: 36,
     nextMomentWrapperStyle: styles.standardMoment
   },
   arrival_guidance: {
     screenBackground: "#F6F8F8",
-    heroGap: 26,
-    heroPaddingTop: 24,
-    globeScale: 1.02,
-    globeOpacity: 0.92,
+    heroGap: 22,
+    heroPaddingTop: 20,
+    globeScale: 0.72,
+    globeOpacity: 0.9,
     primaryTitleSize: 36,
     primaryTitleLineHeight: 46,
-    primaryBodyOpacity: 0.88,
-    secondaryGap: 16,
-    secondaryMarginTop: 34,
+    primaryBodyOpacity: 0.92,
+    secondaryGap: 15,
+    secondaryMarginTop: 30,
     nextMomentWrapperStyle: styles.guidedMoment
   },
   extended_wait: {
     screenBackground: "#F8F8F6",
-    heroGap: 36,
-    heroPaddingTop: 36,
-    globeScale: 0.94,
-    globeOpacity: 0.7,
-    primaryTitleSize: 33,
-    primaryTitleLineHeight: 44,
+    heroGap: 30,
+    heroPaddingTop: 28,
+    globeScale: 0.6,
+    globeOpacity: 0.58,
+    primaryTitleSize: 32,
+    primaryTitleLineHeight: 42,
     primaryBodyOpacity: 0.72,
-    secondaryGap: 24,
-    secondaryMarginTop: 58,
-    nextMomentWrapperStyle: styles.quietMoment
+    secondaryGap: 26,
+    secondaryMarginTop: 52,
+    nextMomentWrapperStyle: styles.waitingMoment
   }
 };
