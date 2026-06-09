@@ -1,14 +1,20 @@
+import { messagingMatrix } from "@/features/interpreter/messaging/messagingMatrix";
+import { SituationType } from "@/features/interpreter/situations/types";
 import { NextExpectedMoment } from "@/types/nextExpectedMoment";
 import { RouteCheckpoint } from "@/types/route";
-import { messagingMatrix } from "@/features/interpreter/messaging/messagingMatrix";
-
-import { SituationType } from "../situations/types";
 
 type GetNextExpectedMomentParams = {
   situation: SituationType;
   nextCheckpoint?: RouteCheckpoint;
   remainingMinutes: number;
 };
+
+function shouldHideMinutes(situation: SituationType): boolean {
+  return (
+    situation === "slightly_extended_route" ||
+    situation === "holding_pattern_possible"
+  );
+}
 
 export function getNextExpectedMoment({
   situation,
@@ -19,7 +25,7 @@ export function getNextExpectedMoment({
 
   if (situation === "stable_progress" && nextCheckpoint) {
     return {
-      title: `Next: ${nextCheckpoint.label}`,
+      title: "The route continues normally",
       body: `The flight should continue steadily toward ${nextCheckpoint.label}.`,
       minutesUntil: remainingMinutes
     };
@@ -28,10 +34,6 @@ export function getNextExpectedMoment({
   return {
     title: message.nextTitle,
     body: message.nextBody,
-    minutesUntil:
-      situation === "slightly_extended_route" ||
-      situation === "holding_pattern_possible"
-        ? undefined
-        : remainingMinutes
+    minutesUntil: shouldHideMinutes(situation) ? undefined : remainingMinutes
   };
 }
