@@ -6,18 +6,34 @@ type SituationInsightCardProps = {
   label?: string;
 };
 
+function getDisplayContent(title: string, body: string) {
+  if (title === "Journey progress") {
+    return {
+      title: "Current situation",
+      body: body.replace(
+        "remaining in the scheduled journey.",
+        "left in this part of the journey. The flight is continuing steadily."
+      )
+    };
+  }
+
+  return { title, body };
+}
+
 export function SituationInsightCard({
   title,
   body,
   label = "Current situation"
 }: SituationInsightCardProps) {
+  const displayContent = getDisplayContent(title, body);
+
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{label}</Text>
 
       <View style={styles.content}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>{body}</Text>
+        <Text style={styles.title}>{displayContent.title}</Text>
+        <Text style={styles.body}>{displayContent.body}</Text>
       </View>
     </View>
   );
