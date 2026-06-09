@@ -20,7 +20,7 @@ export function getSituationMessage({
     case "descent_expected":
       return {
         title: "Preparing for the final part",
-        body: "The journey is moving toward arrival. Changes in movement can feel different here, and they are expected."
+        body: "The journey is moving toward arrival. Some changes may become easier to notice."
       };
 
     case "arrival_soon":
@@ -32,13 +32,13 @@ export function getSituationMessage({
     case "slightly_extended_route":
       return {
         title: "The route is taking a little longer",
-        body: "The flight is still continuing normally. Small route changes can happen without meaning anything is wrong."
+        body: "The flight is still continuing normally. A small timing change does not mean something is wrong."
       };
 
     case "holding_pattern_possible":
       return {
         title: "The flight is staying steady",
-        body: "It may remain in this part of the journey for a while. That can be a normal part of the flight flow."
+        body: "It may remain in this part of the journey for a while. The experience can still be calm and normal."
       };
 
     case "stable_progress":
