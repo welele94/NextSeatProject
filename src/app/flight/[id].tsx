@@ -14,8 +14,8 @@ import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapshot";
-import { FlightRhythmState } from "@/features/rhythm/types";
 import { formatMinutes } from "@/features/time/formatMinutes";
+import { FlightRhythmState } from "@/features/rhythm/types";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 type RhythmPresentation = {

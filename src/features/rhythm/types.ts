@@ -1,5 +1,5 @@
 export type FlightRhythmState =
-  | "active_transition"
   | "calm_cruise"
+  | "active_transition"
   | "arrival_guidance"
   | "extended_wait";

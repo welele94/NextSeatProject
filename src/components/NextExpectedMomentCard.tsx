@@ -17,7 +17,7 @@ export function NextExpectedMomentCard({
     return (
         <View style={styles.card}>
             <Pressable 
-                onPress={() = setIsExpanded((current) => !current)}
+                onPress={() => setIsExpanded((current) => !current)}
                 style={styles.header}
                 accessibilityRole="button"
                 accessibilityLabel={`Next expected moment. Tap to ${isExpanded ? "collapse" : "expand"}`}>
@@ -32,7 +32,7 @@ export function NextExpectedMomentCard({
 
             </Pressable>
 
-            {isExpaded ? (
+            {isExpanded?(
                 <>
                     <Text style={styles.body}>{moment.body}</Text>
                     {moment.minutesUntil !== undefined ? (
