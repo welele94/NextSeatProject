@@ -1,6 +1,11 @@
 import { messagingMatrix } from "@/features/interpreter/messaging/messagingMatrix";
 import { SituationType } from "@/features/interpreter/situations/types";
-import { NextExpectedMoment } from "@/types/nextExpectedMoment";
+import {
+  ExpectedMomentConfidence,
+  ExpectedMomentContext,
+  NextExpectedMoment,
+  TimingEstimate
+} from "@/types/nextExpectedMoment";
 import { RouteCheckpoint } from "@/types/route";
 
 type GetNextExpectedMomentParams = {
@@ -16,6 +21,49 @@ function shouldHideMinutes(situation: SituationType): boolean {
   );
 }
 
+function getConfidence(situation: SituationType): ExpectedMomentConfidence {
+  if (
+    situation === "slightly_extended_route" ||
+    situation === "holding_pattern_possible"
+  ) {
+    return "low";
+  }
+
+  if (situation === "descent_expected" || situation === "arrival_soon") {
+    return "medium";
+  }
+
+  return "high";
+}
+
+function getContext(situation: SituationType): ExpectedMomentContext {
+  switch (situation) {
+    case "slightly_extended_route":
+    case "holding_pattern_possible":
+      return "delay_or_wait";
+    case "descent_expected":
+    case "arrival_soon":
+      return "phase_progression";
+    case "stable_progress":
+    default:
+      return "schedule_based";
+  }
+}
+
+function buildTimingEstimate(
+  situation: SituationType,
+  remainingMinutes: number
+): TimingEstimate | undefined {
+  if (shouldHideMinutes(situation)) {
+    return undefined;
+  }
+
+  return {
+    minutesUntil: remainingMinutes,
+    label: `Around ${remainingMinutes} min remaining`
+  };
+}
+
 export function getNextExpectedMoment({
   situation,
   nextCheckpoint,
@@ -24,16 +72,24 @@ export function getNextExpectedMoment({
   const message = messagingMatrix[situation];
 
   if (situation === "stable_progress" && nextCheckpoint) {
+    const body = `The flight should continue steadily toward ${nextCheckpoint.label}.`;
+
     return {
       title: "The route continues normally",
-      body: `The flight should continue steadily toward ${nextCheckpoint.label}.`,
-      minutesUntil: remainingMinutes
+      body,
+      description: body,
+      confidence: "high",
+      context: "route_pattern",
+      timingEstimate: buildTimingEstimate(situation, remainingMinutes)
     };
   }
 
   return {
     title: message.nextTitle,
     body: message.nextBody,
-    minutesUntil: shouldHideMinutes(situation) ? undefined : remainingMinutes
+    description: message.nextBody,
+    confidence: getConfidence(situation),
+    context: getContext(situation),
+    timingEstimate: buildTimingEstimate(situation, remainingMinutes)
   };
 }
