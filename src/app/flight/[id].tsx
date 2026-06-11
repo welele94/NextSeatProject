@@ -1,12 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AmbientGlobe } from "@/components/AmbientGlobe";
@@ -14,28 +8,29 @@ import { NextExpectedMomentCard } from "@/components/NextExpectedMomentCard";
 import { SituationInsightCard } from "@/components/SituationInsightCard";
 import { getMockFlightById } from "@/data/mockFlights";
 import { buildFlightSnapshot } from "@/features/flightSnapshot/buildFlightSnapshot";
-import { formatMinutes } from "@/features/time/formatMinutes";
 import { FlightRhythmState } from "@/features/rhythm/types";
+import { formatMinutes } from "@/features/time/formatMinutes";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 type RhythmPresentation = {
-  screenBackground: string;
+  background: string;
   heroGap: number;
   heroPaddingTop: number;
   globeScale: number;
   globeOpacity: number;
-  primaryTitleSize: number;
-  primaryTitleLineHeight: number;
-  primaryBodyOpacity: number;
-  secondaryGap: number;
-  secondaryMarginTop: number;
-  nextMomentWrapperStyle: object;
+  titleSize: number;
+  titleLineHeight: number;
+  bodyOpacity: number;
+  nextEmphasized: boolean;
+  sectionGap: number;
+  sectionMarginTop: number;
 };
 
 export default function FlightDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
+
   const flight = getMockFlightById(id);
 
   useEffect(() => {
@@ -47,13 +42,13 @@ export default function FlightDetailScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const flightSnapshot = useMemo(() => {
+  const snapshot = useMemo(() => {
     if (!flight) {
       return undefined;
     }
 
     return buildFlightSnapshot(flight, currentTime);
-  }, [currentTime, flight]);
+  }, [flight, currentTime]);
 
   function handleBackPress() {
     if (router.canGoBack()) {
@@ -64,60 +59,50 @@ export default function FlightDetailScreen() {
     router.replace("/");
   }
 
-  if (!flight || !flightSnapshot) {
+  if (!snapshot) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <Stack.Screen options={{ headerShown: false }} />
 
-        <Pressable
-          onPress={handleBackPress}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
+        <Pressable onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backButtonText}>‹ Back</Text>
         </Pressable>
 
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Flight not found</Text>
           <Text style={styles.emptyText}>
-            This mocked flight is not available in local data.
+            This flight is not available on this device.
           </Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const presentation = rhythmPresentation[flightSnapshot.rhythm];
+  const presentation = rhythmPresentation[snapshot.rhythm];
 
   return (
     <SafeAreaView
       style={[
         styles.safeArea,
-        { backgroundColor: presentation.screenBackground }
+        { backgroundColor: presentation.background }
       ]}
     >
       <Stack.Screen options={{ headerShown: false }} />
 
-      <Pressable
-        onPress={handleBackPress}
-        style={styles.backButton}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
+      <Pressable onPress={handleBackPress} style={styles.backButton}>
         <Text style={styles.backButtonText}>‹ Back</Text>
       </Pressable>
 
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { backgroundColor: presentation.screenBackground }
+          { backgroundColor: presentation.background }
         ]}
-        showsVerticalScrollIndicator={false}
       >
         <View
           style={[
-            styles.heroSection,
+            styles.hero,
             {
               gap: presentation.heroGap,
               paddingTop: presentation.heroPaddingTop
@@ -125,12 +110,33 @@ export default function FlightDetailScreen() {
           ]}
         >
           <Text style={styles.routeLabel}>
-            {flight.origin.city} → {flight.destination.city}
+            {snapshot.journey.routeLabel}
+          </Text>
+
+          <Text
+            style={[
+              styles.heroTitle,
+              {
+                fontSize: presentation.titleSize,
+                lineHeight: presentation.titleLineHeight
+              }
+            ]}
+          >
+            {snapshot.reassurance.title}
+          </Text>
+
+          <Text
+            style={[
+              styles.heroBody,
+              { opacity: presentation.bodyOpacity }
+            ]}
+          >
+            {snapshot.reassurance.body}
           </Text>
 
           <View
             style={[
-              styles.globeFrame,
+              styles.globeWrapper,
               {
                 opacity: presentation.globeOpacity,
                 transform: [{ scale: presentation.globeScale }]
@@ -138,54 +144,62 @@ export default function FlightDetailScreen() {
             ]}
           >
             <AmbientGlobe
-              progressPercent={flightSnapshot.progress.progressPercent}
+              progressPercent={snapshot.progress.progressPercent}
             />
-          </View>
-
-          <View style={styles.primaryMessageBlock}>
-            <Text
-              style={[
-                styles.primaryTitle,
-                {
-                  fontSize: presentation.primaryTitleSize,
-                  lineHeight: presentation.primaryTitleLineHeight
-                }
-              ]}
-            >
-              {flightSnapshot.situationMessage.title}
-            </Text>
-
-            <Text
-              style={[
-                styles.primaryBody,
-                { opacity: presentation.primaryBodyOpacity }
-              ]}
-            >
-              {flightSnapshot.situationMessage.body}
-            </Text>
           </View>
         </View>
 
         <View
           style={[
-            styles.secondarySection,
+            styles.sections,
             {
-              gap: presentation.secondaryGap,
-              marginTop: presentation.secondaryMarginTop
+              gap: presentation.sectionGap,
+              marginTop: presentation.sectionMarginTop
             }
           ]}
         >
-          <View style={presentation.nextMomentWrapperStyle}>
-            <NextExpectedMomentCard
-              moment={flightSnapshot.nextExpectedMoment}
-              initiallyExpanded
-            />
+          <NextExpectedMomentCard
+            moment={snapshot.expectedMoment}
+            emphasized={presentation.nextEmphasized}
+          />
+
+          <View style={styles.progressCard}>
+            <Text style={styles.progressLabel}>Journey progress</Text>
+
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(
+                      Math.max(snapshot.journey.completedPercent, 0),
+                      100
+                    )}%`
+                  }
+                ]}
+              />
+            </View>
+
+            <View style={styles.progressMeta}>
+              <Text style={styles.progressText}>
+                {snapshot.phase.label}
+              </Text>
+
+              <Text style={styles.progressText}>
+                About {formatMinutes(snapshot.journey.remainingMinutes)} left
+              </Text>
+            </View>
           </View>
 
           <SituationInsightCard
-            label="Why is this happening?"
-            title={flightSnapshot.situationMessage.title}
-            body={`${flightSnapshot.situationMessage.body} About ${formatMinutes(flightSnapshot.progress.remainingMinutes)} remains in the scheduled journey.`}
+            title={snapshot.phase.passengerMeaning}
+            body={`${snapshot.phase.description} ${snapshot.reassurance.body}`}
+          />
+
+          <SituationInsightCard
+            label="Optional details"
+            title="Route awareness"
+            body={`The journey is from ${snapshot.journey.originLabel} to ${snapshot.journey.destinationLabel}. These details are here if you want them, but you do not need to monitor them.`}
           />
         </View>
       </ScrollView>
@@ -196,141 +210,159 @@ export default function FlightDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F6F7F9"
+    backgroundColor: "#F8FAFC"
   },
   backButton: {
     alignSelf: "flex-start",
     marginLeft: 20,
     marginTop: 8,
-    marginBottom: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255, 255, 255, 0.72)"
+    backgroundColor: "rgba(255, 255, 255, 0.78)"
   },
   backButtonText: {
-    color: "#41515F",
+    color: "#0D3B8C",
     fontSize: 15,
-    fontWeight: "700"
+    fontWeight: "800"
   },
   content: {
-    paddingBottom: 92
+    paddingBottom: 96
   },
-  heroSection: {
-    paddingHorizontal: 24
-  },
-  routeLabel: {
-    color: "#7A8A96",
-    fontSize: 13,
-    letterSpacing: 1,
-    textAlign: "center",
-    textTransform: "uppercase"
-  },
-  globeFrame: {
+  hero: {
+    paddingHorizontal: 24,
     alignItems: "center"
   },
-  primaryMessageBlock: {
-    gap: 14,
-    paddingHorizontal: 2
+  routeLabel: {
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase"
   },
-  primaryTitle: {
-    color: "#102331",
-    fontWeight: "300",
+  heroTitle: {
+    color: "#16213E",
+    fontWeight: "700",
     textAlign: "center"
   },
-  primaryBody: {
-    color: "#5D6B76",
+  heroBody: {
+    color: "#64748B",
     fontSize: 16,
-    lineHeight: 26,
+    lineHeight: 25,
     textAlign: "center"
   },
-  secondarySection: {
+  globeWrapper: {
+    alignItems: "center",
+    marginTop: -8
+  },
+  sections: {
     paddingHorizontal: 18
   },
-  quietMoment: {
-    opacity: 0.8,
-    transform: [{ scale: 0.97 }]
+  progressCard: {
+    gap: 14,
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.72)",
+    borderWidth: 1,
+    borderColor: "#E5EAF0"
   },
-  standardMoment: {
-    opacity: 0.92
+  progressLabel: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
   },
-  guidedMoment: {
-    opacity: 1,
-    transform: [{ scale: 1.015 }]
+  progressTrack: {
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#E5EAF0",
+    overflow: "hidden"
   },
-  waitingMoment: {
-    opacity: 0.84,
-    transform: [{ scale: 0.965 }]
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#0D3B8C"
+  },
+  progressMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  progressText: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "600"
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
-    gap: 8,
-    padding: 24
+    padding: 24,
+    gap: 8
   },
   emptyTitle: {
-    color: "#102331",
+    color: "#16213E",
     fontSize: 24,
     fontWeight: "800"
   },
   emptyText: {
-    color: "#5A6673",
+    color: "#64748B",
     fontSize: 16,
-    lineHeight: 23
+    lineHeight: 24
   }
 });
 
 const rhythmPresentation: Record<FlightRhythmState, RhythmPresentation> = {
   calm_cruise: {
-    screenBackground: "#F7F8F8",
-    heroGap: 24,
-    heroPaddingTop: 24,
-    globeScale: 0.58,
-    globeOpacity: 0.68,
-    primaryTitleSize: 31,
-    primaryTitleLineHeight: 40,
-    primaryBodyOpacity: 0.74,
-    secondaryGap: 18,
-    secondaryMarginTop: 34,
-    nextMomentWrapperStyle: styles.quietMoment
+    background: "#F8FAFC",
+    heroGap: 14,
+    heroPaddingTop: 20,
+    globeScale: 0.56,
+    globeOpacity: 0.55,
+    titleSize: 31,
+    titleLineHeight: 39,
+    bodyOpacity: 0.76,
+    nextEmphasized: false,
+    sectionGap: 16,
+    sectionMarginTop: 18
   },
   active_transition: {
-    screenBackground: "#F6F7F9",
-    heroGap: 22,
+    background: "#F8FAFC",
+    heroGap: 15,
     heroPaddingTop: 18,
-    globeScale: 0.64,
-    globeOpacity: 0.82,
-    primaryTitleSize: 32,
-    primaryTitleLineHeight: 41,
-    primaryBodyOpacity: 0.86,
-    secondaryGap: 16,
-    secondaryMarginTop: 30,
-    nextMomentWrapperStyle: styles.standardMoment
+    globeScale: 0.62,
+    globeOpacity: 0.74,
+    titleSize: 32,
+    titleLineHeight: 40,
+    bodyOpacity: 0.86,
+    nextEmphasized: true,
+    sectionGap: 15,
+    sectionMarginTop: 16
   },
   arrival_guidance: {
-    screenBackground: "#F6F8F8",
-    heroGap: 20,
+    background: "#F3ECFF",
+    heroGap: 14,
     heroPaddingTop: 16,
-    globeScale: 0.68,
-    globeOpacity: 0.9,
-    primaryTitleSize: 33,
-    primaryTitleLineHeight: 42,
-    primaryBodyOpacity: 0.92,
-    secondaryGap: 14,
-    secondaryMarginTop: 26,
-    nextMomentWrapperStyle: styles.guidedMoment
+    globeScale: 0.6,
+    globeOpacity: 0.7,
+    titleSize: 33,
+    titleLineHeight: 41,
+    bodyOpacity: 0.9,
+    nextEmphasized: true,
+    sectionGap: 14,
+    sectionMarginTop: 14
   },
   extended_wait: {
-    screenBackground: "#F8F8F6",
-    heroGap: 26,
+    background: "#FFF3E2",
+    heroGap: 18,
     heroPaddingTop: 22,
-    globeScale: 0.56,
-    globeOpacity: 0.58,
-    primaryTitleSize: 30,
-    primaryTitleLineHeight: 39,
-    primaryBodyOpacity: 0.72,
-    secondaryGap: 20,
-    secondaryMarginTop: 38,
-    nextMomentWrapperStyle: styles.waitingMoment
+    globeScale: 0.52,
+    globeOpacity: 0.48,
+    titleSize: 30,
+    titleLineHeight: 38,
+    bodyOpacity: 0.78,
+    nextEmphasized: false,
+    sectionGap: 18,
+    sectionMarginTop: 22
   }
 };

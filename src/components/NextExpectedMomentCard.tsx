@@ -4,43 +4,40 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatMinutes } from "@/features/time/formatMinutes";
 import { NextExpectedMoment } from "@/types/nextExpectedMoment";
 
-type NextExpectedMomentCardProps = {
+type Props = {
   moment: NextExpectedMoment;
-  initiallyExpanded?: boolean;
+  emphasized?: boolean;
 };
 
-export function NextExpectedMomentCard({
-  moment,
-  initiallyExpanded = true
-}: NextExpectedMomentCardProps) {
-  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
-  const minutesUntil = moment.timingEstimate?.minutesUntil;
+export function NextExpectedMomentCard({ moment, emphasized = false }: Props) {
+  const [expanded, setExpanded] = useState(emphasized);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, emphasized && styles.emphasizedCard]}>
       <Pressable
-        onPress={() => setIsExpanded((current) => !current)}
+        onPress={() => setExpanded((value) => !value)}
         style={styles.header}
-        accessibilityRole="button"
-        accessibilityLabel={`Next expected moment. Tap to ${
-          isExpanded ? "collapse" : "expand"
-        }`}
       >
         <View style={styles.headerText}>
           <Text style={styles.label}>Next expected moment</Text>
-          <Text style={styles.title}>{moment.title}</Text>
+          <Text style={[styles.title, emphasized && styles.emphasizedTitle]}>
+            {moment.title}
+          </Text>
         </View>
 
-        <Text style={styles.expandIcon}>{isExpanded ? "-" : "+"}</Text>
+        <Text style={styles.expandIcon}>{expanded ? "−" : "+"}</Text>
       </Pressable>
 
-      {isExpanded ? (
-        <>
+      {expanded ? (
+        <View style={styles.content}>
           <Text style={styles.body}>{moment.body}</Text>
-          {minutesUntil !== undefined ? (
-            <Text style={styles.time}>In about {formatMinutes(minutesUntil)}</Text>
+
+          {moment.minutesUntil !== undefined ? (
+            <Text style={styles.time}>
+              In about {formatMinutes(moment.minutesUntil)}
+            </Text>
           ) : null}
-        </>
+        </View>
       ) : null}
     </View>
   );
@@ -48,49 +45,58 @@ export function NextExpectedMomentCard({
 
 const styles = StyleSheet.create({
   card: {
-    gap: 12,
-    padding: 20,
-    borderRadius: 20,
+    gap: 14,
+    padding: 18,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#DDE8EC"
+    borderColor: "#E5EAF0"
+  },
+  emphasizedCard: {
+    padding: 22,
+    borderColor: "#CFE0E7"
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 16
+    gap: 14
   },
   headerText: {
     flex: 1,
     gap: 6
   },
   label: {
-    color: "#667584",
-    fontSize: 20,
+    color: "#64748B",
+    fontSize: 11,
     fontWeight: "800",
-    lineHeight: 26
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
   },
   title: {
-    color: "#102331",
-    fontSize: 20,
-    fontWeight: "800",
-    lineHeight: 26
+    color: "#16213E",
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24
+  },
+  emphasizedTitle: {
+    fontSize: 21,
+    lineHeight: 28
   },
   expandIcon: {
-    color: "#2E7D7B",
+    color: "#0D3B8C",
     fontSize: 24,
-    fontWeight: "500",
     lineHeight: 26
   },
+  content: {
+    gap: 10
+  },
   body: {
-    color: "#3D4C5C",
-    fontSize: 16,
-    lineHeight: 25
+    color: "#64748B",
+    fontSize: 15,
+    lineHeight: 24
   },
   time: {
-    marginTop: 2,
-    color: "#237a7B",
+    color: "#0D3B8C",
     fontSize: 14,
     fontWeight: "800"
   }
