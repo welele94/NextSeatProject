@@ -1,0 +1,78 @@
+
+NEXT SEAT — LOGO PACKAGE INSTRUCTIONS
+
+APPROVED DIRECTION
+- Keep the existing approved logo concept.
+- Two simplified seated figures.
+- Companion narrative: "The person in the next seat who calmly explains what is happening."
+- Characters are part of the narrative, not mascots.
+
+LOGO VARIANTS REQUIRED
+
+1. Primary Logo (Light)
+- Navy icon
+- Navy wordmark
+- White/light background
+
+2. Primary Logo (Dark)
+- White icon
+- White wordmark
+- Dark blue background
+
+3. Icon Only
+- Symbol without text
+- App icon safe area respected
+
+4. Horizontal Logo
+- Icon left
+- Wordmark right
+
+5. Monochrome
+- Single color version
+- Black and white versions
+
+EXPORTS
+- SVG
+- PNG
+- 1024x1024 App Icon
+- 512x512
+- 256x256
+- 128x128
+
+BRAND COLORS
+Primary Blue: #0D3B8C
+Cruise Blue: #EAF5FF
+Transition Amber: #FFF3E2
+Arrival Purple: #F3ECFF
+Success Green: #CFEFDF
+Background: #F8FAFC
+Surface: #FFFFFF
+Text Primary: #16213E
+Text Secondary: #64748B
+Border: #E5EAF0
+
+TYPOGRAPHY
+Font: Inter
+
+Hero: 32px / 700
+Title: 24px / 600
+Section: 20px / 600
+Body: 16px / 400
+Caption: 14px / 400
+
+TAGLINE
+YOUR FLIGHT, EXPLAINED CALMLY.
+
+DESIGN RULES
+- Calm before informative
+- Simple before clever
+- Companion before dashboard
+- Reassurance before aviation detail
+- Characters must never dominate flight screens
+
+FINAL DELIVERABLES
+- SVG master files
+- PNG exports
+- App icon package
+- Monochrome package
+- Light/Dark package
