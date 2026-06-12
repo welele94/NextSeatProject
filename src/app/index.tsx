@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FlightOverviewCard } from "@/components/FlightOverviewCard";
 import { mockFlights } from "@/data/mockFlights";
+import { colors, spacing, typography } from "@/theme"
 
 export default function HomeScreen() {
   const flight = mockFlights[0];
@@ -17,10 +18,11 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.sectionIntro}>
-          <Text style={styles.sectionEyebrow}>Flight Mode</Text>
-          <Text style={styles.sectionTitle}>Continue your prepared flight</Text>
+          <Text style={styles.sectionEyebrow}>Prepared flight</Text>
+          <Text style={styles.sectionTitle}>Continue your flight companion</Text>
           <Text style={styles.sectionBody}>
-            Flight Mode is the core experience: one flight, one calm flow, one snapshot as the source of truth.
+             One calm view for what is happening, what comes next, and what you
+            can safely ignore.
           </Text>
         </View>
 
@@ -29,34 +31,14 @@ export default function HomeScreen() {
         <Link
           asChild
           href={{
-            pathname: "/flight/[id]",
+            pathname: "/flight/[id]/overview",
             params: { id: flight.id }
           }}
         >
           <Pressable style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Open Flight Mode</Text>
+            <Text style={styles.primaryButtonText}>Open Next Seat</Text>
           </Pressable>
         </Link>
-
-        <View style={styles.secondarySections}>
-          <Link asChild href="/learn">
-            <Pressable style={styles.secondaryCard}>
-              <Text style={styles.secondaryTitle}>Learn More</Text>
-              <Text style={styles.secondaryBody}>
-                Optional calm explanations for common flight sensations.
-              </Text>
-            </Pressable>
-          </Link>
-
-          <Link asChild href="/settings">
-            <Pressable style={styles.secondaryCard}>
-              <Text style={styles.secondaryTitle}>Settings</Text>
-              <Text style={styles.secondaryBody}>
-                Preferences and future offline data controls.
-              </Text>
-            </Pressable>
-          </Link>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -65,78 +47,50 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F6F7F9"
+    backgroundColor: colors.background
   },
   content: {
-    gap: 18,
-    padding: 20
+    gap: spacing.xl,
+    padding: spacing.xl
   },
   header: {
-    gap: 4,
-    paddingTop: 8
+    gap: spacing.xs,
+    paddingTop: spacing.sm
   },
   appName: {
-    color: "#102331",
-    fontSize: 34,
-    fontWeight: "800"
+    ...typography.hero,
+    color: colors.textPrimary
   },
   subtitle: {
-    color: "#5A6673",
-    fontSize: 16
+    ...typography.body,
+    color: colors.textSecondary
   },
   sectionIntro: {
-    gap: 6,
-    marginTop: 10
+    gap: spacing.sm,
+    marginTop: spacing.sm
   },
   sectionEyebrow: {
-    color: "#7A8A96",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase"
+    ...typography.eyebrow,
+    color: colors.textSecondary
   },
   sectionTitle: {
-    color: "#102331",
-    fontSize: 22,
-    fontWeight: "800"
+    ...typography.title,
+    color: colors.textPrimary
   },
   sectionBody: {
-    color: "#5A6673",
-    fontSize: 15,
-    lineHeight: 22
+    ...typography.body,
+    color: colors.textSecondary
   },
   primaryButton: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 52,
-    borderRadius: 8,
-    backgroundColor: "#102331"
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: colors.primaryBlue
   },
   primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+    ...typography.body,
+    color: colors.white,
     fontWeight: "700"
-  },
-  secondarySections: {
-    gap: 12,
-    marginTop: 8
-  },
-  secondaryCard: {
-    gap: 6,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderColor: "#DDE5EA",
-    borderWidth: 1,
-    padding: 16
-  },
-  secondaryTitle: {
-    color: "#102331",
-    fontSize: 17,
-    fontWeight: "800"
-  },
-  secondaryBody: {
-    color: "#5A6673",
-    fontSize: 14,
-    lineHeight: 20
   }
 });

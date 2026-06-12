@@ -1,7 +1,10 @@
 import { useState } from "react";
+
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { colors, spacing, typography } from "@/theme";
 
 import { formatMinutes } from "@/features/time/formatMinutes";
+
 import { NextExpectedMoment } from "@/types/nextExpectedMoment";
 
 type Props = {
@@ -12,6 +15,9 @@ type Props = {
 export function NextExpectedMomentCard({ moment, emphasized = false }: Props) {
   const [expanded, setExpanded] = useState(emphasized);
 
+  const minutesUntil = moment.timingEstimate?.minutesUntil;
+  const timingLabel = moment.timingEstimate?.label;
+
   return (
     <View style={[styles.card, emphasized && styles.emphasizedCard]}>
       <Pressable
@@ -20,6 +26,7 @@ export function NextExpectedMomentCard({ moment, emphasized = false }: Props) {
       >
         <View style={styles.headerText}>
           <Text style={styles.label}>Next expected moment</Text>
+
           <Text style={[styles.title, emphasized && styles.emphasizedTitle]}>
             {moment.title}
           </Text>
@@ -32,10 +39,12 @@ export function NextExpectedMomentCard({ moment, emphasized = false }: Props) {
         <View style={styles.content}>
           <Text style={styles.body}>{moment.body}</Text>
 
-          {moment.minutesUntil !== undefined ? (
+          {minutesUntil !== undefined ? (
             <Text style={styles.time}>
-              In about {formatMinutes(moment.minutesUntil)}
+              In about {formatMinutes(minutesUntil)}
             </Text>
+          ) : timingLabel ? (
+            <Text style={styles.time}>{timingLabel}</Text>
           ) : null}
         </View>
       ) : null}
@@ -45,59 +54,52 @@ export function NextExpectedMomentCard({ moment, emphasized = false }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    gap: 14,
-    padding: 18,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#E5EAF0"
+    borderColor: colors.border
   },
   emphasizedCard: {
-    padding: 22,
-    borderColor: "#CFE0E7"
+    padding: spacing["2xl"],
+    borderColor: colors.primaryBlue
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 14
+    gap: spacing.md
   },
   headerText: {
     flex: 1,
-    gap: 6
+    gap: spacing.sm
   },
   label: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase"
+    ...typography.eyebrow,
+    color: colors.textSecondary
   },
   title: {
-    color: "#16213E",
-    fontSize: 18,
-    fontWeight: "700",
-    lineHeight: 24
+    ...typography.section,
+    color: colors.textPrimary
   },
   emphasizedTitle: {
-    fontSize: 21,
-    lineHeight: 28
+    ...typography.title
   },
   expandIcon: {
-    color: "#0D3B8C",
-    fontSize: 24,
-    lineHeight: 26
+    color: colors.primaryBlue,
+    fontSize: 26,
+    lineHeight: 28
   },
   content: {
-    gap: 10
+    gap: spacing.sm
   },
   body: {
-    color: "#64748B",
-    fontSize: 15,
-    lineHeight: 24
+    ...typography.body,
+    color: colors.textSecondary
   },
   time: {
-    color: "#0D3B8C",
-    fontSize: 14,
-    fontWeight: "800"
+    ...typography.caption,
+    color: colors.primaryBlue,
+    fontWeight: "700"
   }
 });
