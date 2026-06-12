@@ -46,12 +46,14 @@ export default function MoreTab() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Current snapshot</Text>
+          <Text style={styles.cardLabel}>Journey context</Text>
 
-          <DetailRow label="Phase" value={snapshot.phase.label} />
-          <DetailRow label="Status" value={snapshot.status} />
-          <DetailRow label="Rhythm" value={snapshot.rhythm} />
-          <DetailRow label="Situation" value={snapshot.situation} />
+          <DetailRow label="Current part" value={snapshot.phase.label} />
+          <DetailRow label="What it means" value={snapshot.phase.passengerMeaning} />
+          <DetailRow
+            label="Progress"
+            value={`${Math.round(snapshot.progress.progressPercent)}% complete`}
+          />
         </View>
 
         <View style={styles.card}>
