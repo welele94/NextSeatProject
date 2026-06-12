@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { learnArticles, LearnArticle } from "@/data/learnArticles";
+import { learnArticles } from "@/data/learnArticles";
 import { colors, spacing, typography } from "@/theme";
+import { LearnArticle } from "@/types/learnArticle";
 
 export default function LearnTab() {
   return (
