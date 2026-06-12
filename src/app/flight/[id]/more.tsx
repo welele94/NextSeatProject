@@ -6,9 +6,9 @@ import { colors, spacing, typography } from "@/theme";
 import { useFlightSnapshot } from "./useFlightSnapshot";
 
 export default function MoreTab() {
-  const { flight, snapshot } = useFlightSnapshot();
+  const { snapshot } = useFlightSnapshot();
 
-  if (!snapshot || !flight) {
+  if (!snapshot) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.emptyState}>
@@ -39,13 +39,10 @@ export default function MoreTab() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Flight</Text>
 
-          <DetailRow label="Flight number" value={flight.flightNumber} />
-          <DetailRow label="Airline" value={flight.airline} />
-          <DetailRow
-            label="Aircraft"
-            value={snapshot.journey.aircraftLabel ?? flight.aircraftType}
-          />
-          <DetailRow label="Route" value={snapshot.journey.routeLabel} />
+          <DetailRow label="Flight number" value={snapshot.flightSummary.flightNumber} />
+          <DetailRow label="Airline" value={snapshot.flightSummary.airline} />
+          <DetailRow label="Aircraft" value={snapshot.flightSummary.aircraftLabel} />
+          <DetailRow label="Route" value={snapshot.flightSummary.routeLabel} />
         </View>
 
         <View style={styles.card}>
