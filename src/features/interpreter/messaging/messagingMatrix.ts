@@ -4,58 +4,58 @@ import { SituationMessaging } from "./types";
 
 export const messagingMatrix: Record<SituationType, SituationMessaging> = {
   stable_progress: {
-    heroTitle: "The flight is continuing calmly",
-    heroBody: "The journey is moving steadily onward.",
-    nextTitle: "The route continues normally",
-    nextBody: "The next useful moment is simply continued steady progress.",
+    heroTitle: "You are in a steady part of the flight",
+    heroBody: "Nothing unusual needs your attention right now. The journey is simply continuing.",
+    nextTitle: "The flight should stay steady for now",
+    nextBody: "Most flights spend a long time in this quiet rhythm before the next noticeable change.",
     expandable: {
-      learnMore: "This is the quiet part of the journey. There may not be much to notice, and that is usually a good sign.",
-      whyThisHappens: "Most flights spend a long period simply continuing along the planned route.",
-      whatToExpect: "You can expect the flight to remain steady until the next meaningful moment appears."
+      learnMore: "This is the part of the journey where there may be very little to notice. That quietness is normal.",
+      whyThisHappens: "After the busier beginning, flights usually settle into a simpler rhythm for a while.",
+      whatToExpect: "You can expect the flight to keep feeling steady until the next useful moment appears."
     }
   },
   descent_expected: {
-    heroTitle: "Preparing for the final part",
-    heroBody: "The journey is moving toward arrival. Some changes may become easier to notice.",
-    nextTitle: "The final part comes next",
-    nextBody: "The flight should gradually move from steady travel into arrival preparation.",
+    heroTitle: "The flight is getting ready for its later stage",
+    heroBody: "Nothing unusual is happening. The journey is gradually moving away from the quiet middle part.",
+    nextTitle: "You may notice gentle changes later",
+    nextBody: "As arrival gets closer, the flight may feel a little more active than cruise. That is expected.",
     expandable: {
-      learnMore: "This moment connects the calm middle of the flight with the later arrival phase.",
-      whyThisHappens: "As the destination gets closer, the journey naturally becomes a little more active.",
-      whatToExpect: "You may notice small changes in sound, direction, or movement as the flight continues."
+      learnMore: "This moment is a bridge between the quiet middle of the flight and the later arrival flow.",
+      whyThisHappens: "As the destination gets closer, the journey naturally starts preparing for the final part.",
+      whatToExpect: "You may notice small changes in sound, movement, or cabin activity. These changes do not mean something is wrong."
     }
   },
   arrival_soon: {
     heroTitle: "You are getting close",
-    heroBody: "Most of the journey is behind you. The flight is entering its final scheduled window.",
-    nextTitle: "Arrival is the next major moment",
-    nextBody: "The next part may feel more guided as the journey moves toward landing.",
+    heroBody: "Most of the journey is behind you. Nothing unusual needs your attention right now.",
+    nextTitle: "The final part is beginning to take shape",
+    nextBody: "From here, the flight may feel more guided. You may notice more cabin activity, turns, or changes in sound.",
     expandable: {
-      learnMore: "The final part of a flight often has more noticeable changes than the middle.",
-      whyThisHappens: "The flight is being guided toward the destination area.",
-      whatToExpect: "You can expect a more guided feeling as the journey moves through the final minutes."
+      learnMore: "The final part often feels more active because the journey is moving from steady travel toward arrival.",
+      whyThisHappens: "Near the destination, flights follow a more specific path and the cabin starts preparing for arrival.",
+      whatToExpect: "You may notice more small changes close together. This is a normal part of approaching the end of the journey."
     }
   },
   slightly_extended_route: {
-    heroTitle: "The route is taking a little longer",
+    heroTitle: "The journey may take a little longer",
     heroBody: "The flight is still continuing normally. A small timing change does not mean something is wrong.",
-    nextTitle: "The flight should keep progressing calmly",
-    nextBody: "The next few minutes may simply feel like continued steady flight while timing adjusts.",
+    nextTitle: "The flight should keep going steadily",
+    nextBody: "For now, the next useful moment may simply be more steady flight while timing settles.",
     expandable: {
-      learnMore: "Small timing changes can happen during ordinary flights.",
-      whyThisHappens: "Flights may take slightly different paths or spend more time in one part of the route.",
-      whatToExpect: "The experience should remain steady while the journey continues."
+      learnMore: "Small timing changes are common during real journeys, even when everything is normal.",
+      whyThisHappens: "Flights may spend a little more time on one part of the route or follow a small adjustment.",
+      whatToExpect: "You can expect the flight to continue steadily while the journey catches up with its next moment."
     }
   },
   holding_pattern_possible: {
-    heroTitle: "The flight is staying steady",
-    heroBody: "It may remain in this part of the journey for a while. The experience can still be calm and normal.",
-    nextTitle: "The flight may stay steady a little longer",
-    nextBody: "The next useful moment may come after this extended part of the route.",
+    heroTitle: "The flight may stay steady for a while",
+    heroBody: "This can happen near busy destinations. The journey is still in a normal flow.",
+    nextTitle: "There may be a little more waiting first",
+    nextBody: "The flight may continue in this steady rhythm before moving into the final arrival path.",
     expandable: {
-      learnMore: "Sometimes a flight keeps a steady rhythm before the next noticeable step.",
-      whyThisHappens: "The journey may need more time before moving into the final arrival flow.",
-      whatToExpect: "You can expect continued steady movement until the next transition becomes useful to show."
+      learnMore: "Sometimes the flight stays in a steady pattern before the next visible step happens.",
+      whyThisHappens: "Near busy destinations, flights may need extra spacing before continuing toward arrival.",
+      whatToExpect: "You may feel continued steady movement or repeated turns. This can still be normal."
     }
   }
 };
