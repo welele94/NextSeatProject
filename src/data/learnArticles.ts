@@ -1,11 +1,4 @@
-export type LearnArticle = {
-  id: string;
-  title: string;
-  summary: string;
-  body: string;
-  category: string;
-  durationLabel: string;
-};
+import { LearnArticle } from "@/types/learnArticle";
 
 export const learnArticles: LearnArticle[] = [
   {
