@@ -10,11 +10,6 @@ export type RoutePoint = {
   distanceFromOriginKm: number;
 };
 
-export type Checkpoint = {
-  name: String;
-  timestamp: Date;
-};
-
 export type RouteCheckpoint = RoutePoint & {
   expectedProgressPercent: number;
   reassuranceMessageId?: string;
