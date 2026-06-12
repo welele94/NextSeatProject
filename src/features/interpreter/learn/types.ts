@@ -1,3 +1,8 @@
 export type LearnArticleCategory = string;
 
-export type LearnArticle = Record<string, unknown>;
+export type LearnArticle = {
+  id: string;
+  category: LearnArticleCategory;
+  title: string;
+  readTimeMinutes: number;
+} & Record<string, string | number>;
