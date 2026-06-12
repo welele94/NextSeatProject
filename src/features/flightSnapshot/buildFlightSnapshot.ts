@@ -8,35 +8,15 @@ import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint
 import { FlightStatus, getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
 import { getNextExpectedMoment } from "@/features/interpreter/expectedMoments/getNextExpectedMoment";
-import {
-  getSituationMessage,
-  SituationMessage
-} from "@/features/interpreter/situations/getSituationMessage";
+import { getSituationMessage } from "@/features/interpreter/situations/getSituationMessage";
 import { resolveSituation } from "@/features/interpreter/situations/resolveSituation";
-import { SituationType } from "@/features/interpreter/situations/types";
 import { resolveRhythmState } from "@/features/rhythm/resolveRhythmState";
-import { FlightRhythmState } from "@/features/rhythm/types";
 import { EnvironmentContext } from "@/types/environment";
-import { NextExpectedMoment } from "@/types/nextExpectedMoment";
+
+import { buildFlightSummary } from "./buildFlightSummary";
+import { FlightSnapshot } from "./types";
 
 const emptyEnvironmentContext: EnvironmentContext = {};
-
-export type FlightSnapshot = {
-  phase: JourneyPhase;
-  progress: FlightProgress;
-  journey: JourneyInformation;
-  currentCheckpoint?: RouteCheckpoint;
-  nextCheckpoint?: RouteCheckpoint;
-  status: FlightStatus;
-  situation: SituationType;
-  rhythm: FlightRhythmState;
-  environment: EnvironmentContext;
-  reassurance: SituationMessage;
-  situationMessage: SituationMessage;
-  expectedMoment: NextExpectedMoment;
-  nextExpectedMoment: NextExpectedMoment;
-  delayedMinutes?: number;
-};
 
 function estimateDelayMinutes(progress: FlightProgress): number | undefined {
   if (progress.isBeforeDeparture || progress.isAfterArrival) {
@@ -196,6 +176,7 @@ export function buildFlightSnapshot(
   });
 
   return {
+    flightSummary: buildFlightSummary(flight),
     phase,
     progress,
     journey,
@@ -206,9 +187,6 @@ export function buildFlightSnapshot(
     rhythm,
     environment: emptyEnvironmentContext,
     reassurance,
-    situationMessage: reassurance,
-    expectedMoment,
-    nextExpectedMoment: expectedMoment,
-    delayedMinutes
+    expectedMoment
   };
 }
