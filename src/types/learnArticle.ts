@@ -1,20 +1,20 @@
 export type LearnArticleCategory =
-  | "sounds"
-  | "movement"
-  | "takeoff"
-  | "cruise"
-  | "arrival"
-  | "delays"
-  | "general";
+  | "Sensations"
+  | "Sounds"
+  | "Route"
+  | "Arrival"
+  | "General";
 
-export interface LearnArticle {
+export type LearnArticle = {
   id: string;
-  category: LearnArticleCategory;
   title: string;
-  explanation: string;
-  reassurance: {
+  summary: string;
+  body: string;
+  category: LearnArticleCategory;
+  durationLabel: string;
+  reassurance?: {
     title: string;
     body: string;
   };
-  relatedArticleIds: string[];
-}
+  relatedArticleIds?: string[];
+};
