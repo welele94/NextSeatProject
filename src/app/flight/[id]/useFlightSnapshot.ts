@@ -1,16 +1,12 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  buildFlightSnapshot,
-  FlightSnapshot
-} from "@/features/flightSnapshot/buildFlightSnapshot";
-import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 import { getMockFlightById } from "@/data/mockFlights";
-import { Flight } from "@/types/flight";
+import { getFlightSnapshot } from "@/features/flightSnapshot/getFlightSnapshot";
+import { FlightSnapshot } from "@/features/flightSnapshot/types";
+import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 
 type UseFlightSnapshotResult = {
-  flight?: Flight;
   snapshot?: FlightSnapshot;
 };
 
@@ -39,11 +35,10 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
       return undefined;
     }
 
-    return buildFlightSnapshot(flight, currentTime);
+    return getFlightSnapshot(flight, currentTime);
   }, [flight, currentTime]);
 
   return {
-    flight,
     snapshot
   };
 }
