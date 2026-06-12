@@ -1,5 +1,4 @@
 import { Coordinates, RouteCheckpoint, RoutePoint } from "./route";
-import { Checkpoint } from "./route";
 
 export type Airport = {
   code: string;
