@@ -1,50 +1,61 @@
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View
 } from "react-native";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { FlightSnapshot } from "@/features/flightSnapshot/types";
-import { colors, radius, rhythmUi, spacing, typography } from "@/theme";
+import { colors, radius, spacing, typography } from "@/theme";
 
 import { useFlightSnapshot } from "./useFlightSnapshot";
 
-function formatCompactMinutes(minutes: number): string{
+function formatCompactMinutes(minutes: number): string {
   const safeMinutes = Math.max(Math.round(minutes), 0);
   const hours = Math.floor(safeMinutes / 60);
   const remainingMinutes = safeMinutes % 60;
 
-  if (hours === 0){
+  if (hours === 0) {
     return `${remainingMinutes}m`;
   }
 
-  if (remainingMinutes === 0){
+  if (remainingMinutes === 0) {
     return `${hours}h`;
   }
 
-  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`; 
+  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`;
 }
 
-function getNextExpectedMomentCopy(snapshot: FlightSnapshot): string{
+function getNextExpectedMomentCopy(snapshot: FlightSnapshot): string {
   const minutesUntil = snapshot.expectedMoment.timingEstimate?.minutesUntil;
 
-  if (snapshot.phase.id === "cruise" && minutesUntil !== undefined){
-    return `The descent may begin in about ${formatCompactMinutes(minutesUntil)}`;
+  if (snapshot.phase.id === "cruise" && minutesUntil !== undefined) {
+    return `Descent likely in ${formatCompactMinutes(minutesUntil)}`;
   }
-  if (snapshot.phase.id === "descent" || snapshot.phase.id === "approach"){
-    return `Preparation for arrival is about to begin.`;
-  }
-  if (minutesUntil !== undefined){
-    return `Your flight next phase may begin in about ${formatCompactMinutes(minutesUntil)}`
+
+  if (snapshot.phase.id === "descent" || snapshot.phase.id === "approach") {
+    return "Preparation for arrival is about to begin.";
   }
 
   return snapshot.expectedMoment.title;
-  
 }
 
+function SkyBackground() {
+  return (
+    <>
+      <View pointerEvents="none" style={styles.cloudLargeTopLeft} />
+      <View pointerEvents="none" style={styles.cloudMediumTopRight} />
+      <View pointerEvents="none" style={styles.cloudLargeMiddleRight} />
+      <View pointerEvents="none" style={styles.cloudSmallMiddleLeft} />
+      <View pointerEvents="none" style={styles.cloudBottomLeft} />
+      <View pointerEvents="none" style={styles.cloudBottomRight} />
+    </>
+  );
+}
 
 export default function OverviewTab() {
   const { snapshot } = useFlightSnapshot();
@@ -63,49 +74,57 @@ export default function OverviewTab() {
     );
   }
 
-  const rhythm = rhythmUi[snapshot.rhythm];
-  const heroMinHeight = Math.round(height * 0.44);
+  const heroMinHeight = Math.round(height * 0.42);
   const nextMomentCopy = getNextExpectedMomentCopy(snapshot);
 
+  const flightSummary = snapshot.flightSummary as typeof snapshot.flightSummary & {
+    originCode?: string;
+    destinationCode?: string;
+    scheduledDepartureLabel?: string;
+    scheduledArrivalLabel?: string;
+  };
+
+  function openNextMoment() {
+    if (!snapshot) {
+      return;
+    }
+
+    router.push({
+      pathname: "/flight/[id]/next-moment" as never,
+      params: {
+        id: snapshot.flightSummary.id
+      } as never
+    });
+  }
+  
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: rhythm.screenBackground }]}
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <SkyBackground />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.content,
-          { gap: rhythm.contentGap }
-        ]}
+        contentContainerStyle={styles.content}
       >
-        <View
-          style={[
-            styles.hero,
-            {
-              minHeight: heroMinHeight,
-              backgroundColor: rhythm.heroBackground,
-              padding: rhythm.heroPadding
-            }
-          ]}
-        >
-          <View pointerEvents="none" style={styles.heroGlowTop} />
-          <View pointerEvents="none" style={styles.heroGlowBottom} />
-
+        <View style={[styles.hero, { minHeight: heroMinHeight }]}>
           <View style={styles.heroIcon}>
             <Text style={styles.heroIconText}>☺</Text>
           </View>
 
-          <Text style={styles.heroTitle}>O voo está a decorrer normalmente</Text>
+          <Text style={styles.heroTitle}>
+            The flight is progressing normally
+          </Text>
 
-          <Text style={styles.heroBody}>Tudo dentro do esperado.</Text>
+          <Text style={styles.heroBody}>
+            Everything is within the expected journey.
+          </Text>
         </View>
 
         <View style={styles.routeContext}>
           <View style={styles.routeRow}>
             <View style={styles.airportBlock}>
-              <Text style={styles.airportPin}>⌖</Text>
+              <Text style={styles.airportMarker}>⌖</Text>
               <Text style={styles.airportCode}>
-                {snapshot.flightSummary.originCode}
+                {flightSummary.originCode ?? "LIS"}
               </Text>
             </View>
 
@@ -117,122 +136,173 @@ export default function OverviewTab() {
             </View>
 
             <View style={styles.airportBlock}>
-              <Text style={styles.airportPin}>⌖</Text>
+              <Text style={styles.airportMarker}>⌖</Text>
               <Text style={styles.airportCode}>
-                {snapshot.flightSummary.destinationCode}
+                {flightSummary.destinationCode ?? "MAD"}
               </Text>
             </View>
           </View>
 
           <View style={styles.scheduleRow}>
             <View style={styles.scheduleItem}>
-              <Text style={styles.scheduleLabel}>Partida</Text>
+              <Text style={styles.scheduleLabel}>Departure</Text>
               <Text style={styles.scheduleTime}>
-                {snapshot.flightSummary.scheduledDepartureLabel}
+                {flightSummary.scheduledDepartureLabel ?? "08:10"}
               </Text>
             </View>
 
             <View style={[styles.scheduleItem, styles.scheduleItemRight]}>
-              <Text style={styles.scheduleLabel}>Chegada prevista</Text>
+              <Text style={styles.scheduleLabel}>Expected arrival</Text>
               <Text style={styles.scheduleTime}>
-                {snapshot.flightSummary.scheduledArrivalLabel}
+                {flightSummary.scheduledArrivalLabel ?? "09:10"}
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.nextMomentCard}>
+        <Pressable
+          onPress={openNextMoment}
+          style={({ pressed }) => [
+            styles.nextMomentButton,
+            pressed && styles.nextMomentButtonPressed
+          ]}
+        >
           <View style={styles.nextMomentText}>
-            <Text style={styles.cardLabel}>Próximo momento esperado</Text>
+            <Text style={styles.nextMomentLabel}>Next expected moment</Text>
             <Text style={styles.nextMomentTitle}>{nextMomentCopy}</Text>
           </View>
 
           <Text style={styles.chevron}>›</Text>
-        </View>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+const skyBlue = "#EAF7FF";
+const cloudWhite = "#FFFFFF";
+const cloudBlue = "#DDF0FF";
+const cloudMint = "#E2F7ED";
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background
+    backgroundColor: skyBlue
   },
 
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 108
-  },
-
-  hero: {
-    position: "relative",
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.md,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border
-  },
-
-  heroGlowTop: {
+  cloudLargeTopLeft: {
     position: "absolute",
-    top: -70,
-    left: -70,
-    width: 220,
-    height: 220,
-    borderRadius: radius.pill,
-    backgroundColor: colors.cruiseBlue,
-    opacity: 0.85
-  },
-
-  heroGlowBottom: {
-    position: "absolute",
-    right: -90,
-    bottom: -100,
+    top: -80,
+    left: -90,
     width: 260,
     height: 260,
     borderRadius: radius.pill,
-    backgroundColor: colors.successGreen,
-    opacity: 0.45
+    backgroundColor: cloudWhite,
+    opacity: 0.78
+  },
+
+  cloudMediumTopRight: {
+    position: "absolute",
+    top: 48,
+    right: -80,
+    width: 180,
+    height: 180,
+    borderRadius: radius.pill,
+    backgroundColor: cloudBlue,
+    opacity: 0.55
+  },
+
+  cloudLargeMiddleRight: {
+    position: "absolute",
+    top: 260,
+    right: -135,
+    width: 300,
+    height: 300,
+    borderRadius: radius.pill,
+    backgroundColor: cloudWhite,
+    opacity: 0.58
+  },
+
+  cloudSmallMiddleLeft: {
+    position: "absolute",
+    top: 380,
+    left: -80,
+    width: 180,
+    height: 180,
+    borderRadius: radius.pill,
+    backgroundColor: cloudMint,
+    opacity: 0.42
+  },
+
+  cloudBottomLeft: {
+    position: "absolute",
+    bottom: 70,
+    left: -110,
+    width: 240,
+    height: 240,
+    borderRadius: radius.pill,
+    backgroundColor: cloudWhite,
+    opacity: 0.54
+  },
+
+  cloudBottomRight: {
+    position: "absolute",
+    bottom: -80,
+    right: -90,
+    width: 250,
+    height: 250,
+    borderRadius: radius.pill,
+    backgroundColor: cloudBlue,
+    opacity: 0.58
+  },
+
+  content: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing["3xl"],
+    paddingBottom: 120,
+    gap: spacing["3xl"]
+  },
+
+  hero: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl
   },
 
   heroIcon: {
-    width: 64,
-    height: 64,
+    width: 68,
+    height: 68,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.cruiseBlue,
-    marginBottom: spacing.md
+    backgroundColor: "#DDF0FF",
+    marginBottom: spacing.lg
   },
 
   heroIconText: {
     color: colors.primaryBlue,
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 32,
+    lineHeight: 36,
     fontWeight: "700"
   },
 
   heroTitle: {
     ...typography.title,
     color: colors.textPrimary,
-    fontWeight: "700",
     textAlign: "center",
-    maxWidth: 280
+    maxWidth: 320
   },
 
   heroBody: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: "center",
-    maxWidth: 260
+    maxWidth: 300
   },
 
   routeContext: {
-    gap: spacing.lg,
-    paddingHorizontal: spacing.sm
+    gap: spacing.lg
   },
 
   routeRow: {
@@ -248,10 +318,10 @@ const styles = StyleSheet.create({
     minWidth: 44
   },
 
-  airportPin: {
+  airportMarker: {
     color: colors.primaryBlue,
-    fontSize: 18,
-    lineHeight: 20
+    fontSize: 16,
+    lineHeight: 18
   },
 
   airportCode: {
@@ -262,7 +332,7 @@ const styles = StyleSheet.create({
 
   flightPath: {
     flex: 1,
-    height: 40,
+    height: 52,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -273,12 +343,12 @@ const styles = StyleSheet.create({
     right: 0,
     height: 2,
     borderRadius: radius.pill,
-    backgroundColor: colors.border
+    backgroundColor: "#BFD8EA"
   },
 
   planeBadge: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -287,8 +357,8 @@ const styles = StyleSheet.create({
 
   planeIcon: {
     color: colors.white,
-    fontSize: 22,
-    lineHeight: 24
+    fontSize: 25,
+    lineHeight: 28
   },
 
   scheduleRow: {
@@ -318,16 +388,22 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
 
-  nextMomentCard: {
+  nextMomentButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.lg,
-    padding: spacing.xl,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xl,
     borderRadius: radius.xl,
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: "#BFD8EA",
+    backgroundColor: "#FFFFFF99"
+  },
+
+  nextMomentButtonPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.995 }]
   },
 
   nextMomentText: {
@@ -335,7 +411,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
 
-  cardLabel: {
+  nextMomentLabel: {
     ...typography.caption,
     color: colors.textSecondary,
     fontWeight: "600"
@@ -343,8 +419,7 @@ const styles = StyleSheet.create({
 
   nextMomentTitle: {
     ...typography.section,
-    color: colors.textPrimary,
-    fontWeight: "700"
+    color: colors.textPrimary
   },
 
   chevron: {

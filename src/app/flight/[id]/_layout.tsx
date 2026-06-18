@@ -57,6 +57,14 @@ export default function FlightTabsLayout() {
         }}
       />
 
+      <Tabs.Screen 
+        name="next-moment"
+        options={{
+          href: null,
+          title: "Next moment"
+        }}
+      />
+
       <Tabs.Screen
         name="journey"
         options={{

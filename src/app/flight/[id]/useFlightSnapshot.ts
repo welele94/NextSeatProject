@@ -1,7 +1,7 @@
-import { useLocalSearchParams } from "expo-router";
+import { useGlobalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { getMockFlightById } from "@/data/mockFlights";
+import { getMockFlightById, mockFlights } from "@/data/mockFlights";
 import { getFlightSnapshot } from "@/features/flightSnapshot/getFlightSnapshot";
 import { FlightSnapshot } from "@/features/flightSnapshot/types";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
@@ -11,7 +11,7 @@ type UseFlightSnapshotResult = {
 };
 
 export function useFlightSnapshot(): UseFlightSnapshotResult {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useGlobalSearchParams<{ id: string }>();
   const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
 
   useEffect(() => {
@@ -23,11 +23,11 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
   }, []);
 
   const flight = useMemo(() => {
-    if (!id) {
-      return undefined;
+    if (id) {
+      return getMockFlightById(id) ?? mockFlights[0];
     }
 
-    return getMockFlightById(id);
+    return mockFlights[0];;
   }, [id]);
 
   const snapshot = useMemo(() => {

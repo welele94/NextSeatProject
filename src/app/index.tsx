@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,41 +16,37 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { mockFlights } from "@/data/mockFlights";
 import { colors, radius, spacing, typography } from "@/theme";
 
+const nextSeatLogo = require("@/assets/logo/NextSeat_AppIcon_1024.png");
+
 function normalizeFlightNumber(value: string): string {
   return value.trim().replace(/\s+/g, "").toUpperCase();
 }
 
 export default function HomeScreen() {
   const [flightNumber, setFlightNumber] = useState("");
-  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const normalizedFlightNumber = useMemo(
     () => normalizeFlightNumber(flightNumber),
     [flightNumber]
   );
 
-  const canSubmit = normalizedFlightNumber.length >= 3;
+  const hasFlightNumber = normalizedFlightNumber.length >= 3;
 
   function handleStart() {
-    setHasSubmitted(true);
-
-    if (!canSubmit) {
-      return;
-    }
-
     /**
      * MVP temporary behaviour:
+     * If the user types a flight number, we try to match it.
+     * If not, we still open the mock flight.
+     *
      * Later this becomes:
-     *
      * const flight = await fetchFlightByNumber(normalizedFlightNumber)
-     *
-     * For now we route to the available mock flight so the product flow works.
      */
-    const matchedFlight =
-      mockFlights.find(
-        (flight) =>
-          normalizeFlightNumber(flight.flightNumber) === normalizedFlightNumber
-      ) ?? mockFlights[0];
+    const matchedFlight = hasFlightNumber
+      ? mockFlights.find(
+          (flight) =>
+            normalizeFlightNumber(flight.flightNumber) === normalizedFlightNumber
+        ) ?? mockFlights[0]
+      : mockFlights[0];
 
     router.push({
       pathname: "/flight/[id]/overview",
@@ -59,12 +56,10 @@ export default function HomeScreen() {
     });
   }
 
-  const shouldShowError = hasSubmitted && !canSubmit;
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", default: undefined })}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -72,56 +67,62 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          <View style={styles.card}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Vamos começar!</Text>
+          <View style={styles.screenGroup}>
+            <View style={styles.brand}>
+              <Image
+                source={nextSeatLogo}
+                resizeMode="contain"
+                style={styles.logo}
+              />
 
-              <Text style={styles.subtitle}>
-                Insira o número do seu voo para continuarmos.
+              <Text style={styles.brandName}>Next Seat</Text>
+
+              <Text style={styles.brandTagline}>
+                Your flight, explained calmly.
               </Text>
             </View>
 
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Número do voo</Text>
+            <View style={styles.card}>
+              <View style={styles.header}>
+                <Text style={styles.title}>Vamos começar!</Text>
 
-                <TextInput
-                  value={flightNumber}
-                  onChangeText={setFlightNumber}
-                  placeholder="Ex: TP1025"
-                  placeholderTextColor={colors.textSecondary}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  onSubmitEditing={handleStart}
-                  style={[
-                    styles.input,
-                    shouldShowError && styles.inputError
-                  ]}
-                />
-
-                {shouldShowError ? (
-                  <Text style={styles.errorText}>
-                    Insira um número de voo válido.
-                  </Text>
-                ) : null}
+                <Text style={styles.subtitle}>
+                  Insira o número do seu voo para continuarmos.
+                </Text>
               </View>
 
-              <Pressable
-                onPress={handleStart}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  !canSubmit && styles.primaryButtonDisabled,
-                  pressed && canSubmit && styles.primaryButtonPressed
-                ]}
-              >
-                <Text style={styles.primaryButtonText}>Começar</Text>
-              </Pressable>
-            </View>
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Número do voo</Text>
 
-            <Text style={styles.footerText}>
-              Os dados ficam guardados apenas no seu dispositivo.
-            </Text>
+                  <TextInput
+                    value={flightNumber}
+                    onChangeText={setFlightNumber}
+                    placeholder="Ex: TP1025"
+                    placeholderTextColor={colors.textSecondary}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleStart}
+                    style={styles.input}
+                  />
+                </View>
+
+                <Pressable
+                  onPress={handleStart}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.primaryButtonPressed
+                  ]}
+                >
+                  <Text style={styles.primaryButtonText}>Começar</Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.footerText}>
+                Os dados ficam guardados apenas no seu dispositivo.
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -142,12 +143,43 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: spacing.xl
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing["4xl"]
+  },
+
+  screenGroup: {
+    width: "100%",
+    maxWidth: 390,
+    alignSelf: "center",
+    gap: 48
+  },
+
+  brand: {
+    alignItems: "center",
+    gap: spacing.xs
+  },
+
+  logo: {
+    width: 58,
+    height: 58,
+    marginBottom: spacing.md
+  },
+
+  brandName: {
+    ...typography.title,
+    color: colors.textPrimary,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+
+  brandTagline: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center"
   },
 
   card: {
-    minHeight: 560,
-    justifyContent: "center",
+    width: "100%",
     gap: spacing["3xl"],
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing["4xl"],
@@ -202,25 +234,12 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
 
-  inputError: {
-    borderColor: colors.transitionAmber
-  },
-
-  errorText: {
-    ...typography.caption,
-    color: colors.textSecondary
-  },
-
   primaryButton: {
     minHeight: 56,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.lg,
     backgroundColor: colors.primaryBlue
-  },
-
-  primaryButtonDisabled: {
-    opacity: 0.55
   },
 
   primaryButtonPressed: {
