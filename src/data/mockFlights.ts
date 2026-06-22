@@ -20,24 +20,24 @@ export const mockFlights: Flight[] = [
     },
 
     destination: {
-      code: "MAD",
-      name: "Adolfo Suárez Madrid–Barajas Airport",
-      city: "Madrid",
-      country: "Spain",
+      code: "OPO",
+      name: "Francisco Sa Carneiro Airport",
+      city: "Porto",
+      country: "Portugal",
       coordinates: {
-        latitude: 40.4983,
-        longitude: -3.5676
+        latitude: 41.2481,
+        longitude: -8.6814
       }
     },
 
     schedule: {
-      // já passou bastante → estamos perto do fim
-      scheduledDeparture: createRelativeTimestamp(-90),
-      scheduledArrival: createRelativeTimestamp(15),
-      estimatedDurationMinutes: 105
+      // Pre-flight mock: departure is still ahead, so the app opens in preparation mode.
+      scheduledDeparture: createRelativeTimestamp(45),
+      scheduledArrival: createRelativeTimestamp(105),
+      estimatedDurationMinutes: 60
     },
 
-    routeDistanceKm: 500,
+    routeDistanceKm: 280,
 
     routeCoordinates: [
       {
@@ -47,41 +47,38 @@ export const mockFlights: Flight[] = [
         distanceFromOriginKm: 0
       },
       {
-        id: "central-spain",
-        label: "Central Spain",
-        coordinates: { latitude: 39.5, longitude: -6.0 },
-        distanceFromOriginKm: 250
+        id: "central-portugal",
+        label: "Central Portugal",
+        coordinates: { latitude: 40.0, longitude: -8.4 },
+        distanceFromOriginKm: 140
       },
       {
-        id: "mad",
-        label: "Madrid",
-        coordinates: { latitude: 39.4983, longitude: -3.5676 },
-        distanceFromOriginKm: 500
+        id: "opo",
+        label: "Porto",
+        coordinates: { latitude: 41.2481, longitude: -8.6814 },
+        distanceFromOriginKm: 280
       }
     ],
 
     checkpoints: [
       {
-        id: "central-spain-checkpoint",
-        label: "Central Spain",
-        coordinates: { latitude: 39.5, longitude: -6.0 },
-        distanceFromOriginKm: 250,
+        id: "central-portugal-checkpoint",
+        label: "Central Portugal",
+        coordinates: { latitude: 40.0, longitude: -8.4 },
+        distanceFromOriginKm: 140,
         expectedProgressPercent: 50,
         reassuranceMessageId: "steady-progress"
       },
       {
-        id: "approach-madrid",
-        label: "Madrid approach",
-        coordinates: { latitude: 40.2, longitude: -3.7 },
-        distanceFromOriginKm: 450,
+        id: "approach-porto",
+        label: "Porto approach",
+        coordinates: { latitude: 41.1, longitude: -8.65 },
+        distanceFromOriginKm: 250,
         expectedProgressPercent: 90,
         reassuranceMessageId: "nearing-destination"
       }
     ]
   }
-
-  
-  
 ];
 
 export function getMockFlightById(id: string): Flight | undefined {
