@@ -39,12 +39,12 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
     case "before_departure":
       return {
         id: "departure",
-        label: "Departure preparation",
-        description: "The journey has not started yet, but the flight view is prepared.",
+        label: "Pre-flight",
+        description: "The flight has not started yet, and the app is ready for the journey.",
         expectedProgressRange: { startPercent: 0, endPercent: 5 },
-        intensity: "medium",
-        passengerMeaning: "Use this moment to get oriented before the flight begins.",
-        typicalSensations: []
+        intensity: "low",
+        passengerMeaning: "Use this moment to get settled before departure.",
+        typicalSensations: ["boarding", "crew checks", "waiting"]
       };
     case "early_flight":
       return {
