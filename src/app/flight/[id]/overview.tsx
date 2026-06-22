@@ -76,6 +76,8 @@ export default function OverviewTab() {
 
   const heroMinHeight = Math.round(height * 0.42);
   const nextMomentCopy = getNextExpectedMomentCopy(snapshot);
+  const heroTitle = snapshot.reassurance.title;
+  const heroBody = snapshot.reassurance.body;
 
   const flightSummary = snapshot.flightSummary as typeof snapshot.flightSummary & {
     originCode?: string;
@@ -96,7 +98,7 @@ export default function OverviewTab() {
       } as never
     });
   }
-  
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <SkyBackground />
@@ -110,13 +112,9 @@ export default function OverviewTab() {
             <Text style={styles.heroIconText}>☺</Text>
           </View>
 
-          <Text style={styles.heroTitle}>
-            The flight is progressing normally
-          </Text>
+          <Text style={styles.heroTitle}>{heroTitle}</Text>
 
-          <Text style={styles.heroBody}>
-            Everything is within the expected journey.
-          </Text>
+          <Text style={styles.heroBody}>{heroBody}</Text>
         </View>
 
         <View style={styles.routeContext}>
@@ -138,7 +136,7 @@ export default function OverviewTab() {
             <View style={styles.airportBlock}>
               <Text style={styles.airportMarker}>⌖</Text>
               <Text style={styles.airportCode}>
-                {flightSummary.destinationCode ?? "MAD"}
+                {flightSummary.destinationCode ?? "OPO"}
               </Text>
             </View>
           </View>
