@@ -3,6 +3,17 @@ import { SituationType } from "@/features/interpreter/situations/types";
 import { SituationMessaging } from "./types";
 
 export const messagingMatrix: Record<SituationType, SituationMessaging> = {
+  pre_flight: {
+    heroTitle: "Your flight is being prepared",
+    heroBody: "The journey has not started yet. For now, you can get oriented calmly before departure.",
+    nextTitle: "Boarding and departure preparation are next",
+    nextBody: "Before the aircraft leaves, you may notice crew checks, boarding movement, and small schedule updates. That is all part of the normal start of a flight.",
+    expandable: {
+      learnMore: "Pre-flight can feel uncertain because you are waiting for the journey to begin. The app is ready to guide you once the flight moves into its next stage.",
+      whyThisHappens: "Aircraft and crew follow routine checks before departure. These checks are normal and help the flight begin in an orderly way.",
+      whatToExpect: "You can expect boarding, cabin preparation, safety checks, and then the first movement toward departure."
+    }
+  },
   stable_progress: {
     heroTitle: "You are in a steady part of the flight",
     heroBody: "Nothing unusual needs your attention right now. The journey is simply continuing.",
