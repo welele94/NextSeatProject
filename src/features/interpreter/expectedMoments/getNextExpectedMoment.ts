@@ -16,6 +16,7 @@ type GetNextExpectedMomentParams = {
 
 function shouldHideMinutes(situation: SituationType): boolean {
   return (
+    situation === "pre_flight" ||
     situation === "slightly_extended_route" ||
     situation === "holding_pattern_possible"
   );
@@ -44,6 +45,7 @@ function getContext(situation: SituationType): ExpectedMomentContext {
     case "descent_expected":
     case "arrival_soon":
       return "phase_progression";
+    case "pre_flight":
     case "stable_progress":
     default:
       return "schedule_based";
