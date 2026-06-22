@@ -17,6 +17,12 @@ export function getSituationMessage({
   currentCheckpoint
 }: GetSituationMessageParams): SituationMessage {
   switch (situation) {
+    case "pre_flight":
+      return {
+        title: "Your flight is being prepared",
+        body: "The journey has not started yet. This is a good moment to get settled before departure."
+      };
+
     case "descent_expected":
       return {
         title: "Preparing for the final part",
