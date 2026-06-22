@@ -1,6 +1,7 @@
 import { FlightStatus } from "@/features/flightCore/getFlightStatus";
 
 export type SituationType =
+  | "pre_flight"
   | "stable_progress"
   | "descent_expected"
   | "arrival_soon"
