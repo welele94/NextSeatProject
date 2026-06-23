@@ -7,6 +7,7 @@ import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTi
 import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
 import { FlightStatus, getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
+import { resolveGuidanceState } from "@/features/guidance/resolveGuidanceState";
 import { getNextExpectedMoment } from "@/features/interpreter/expectedMoments/getNextExpectedMoment";
 import { getSituationMessage } from "@/features/interpreter/situations/getSituationMessage";
 import { resolveSituation } from "@/features/interpreter/situations/resolveSituation";
@@ -164,6 +165,11 @@ export function buildFlightSnapshot(
     progressPercent: progress.progressPercent
   });
 
+  const guidance = resolveGuidanceState({
+    progress,
+    status
+  });
+
   const reassurance = getSituationMessage({
     situation,
     currentCheckpoint
@@ -186,6 +192,7 @@ export function buildFlightSnapshot(
     situation,
     rhythm,
     environment: emptyEnvironmentContext,
+    guidance,
     reassurance,
     expectedMoment
   };
