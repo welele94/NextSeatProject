@@ -3,6 +3,7 @@ import { JourneyInformation, JourneyPhase } from "@/types/journey";
 import { RouteCheckpoint } from "@/types/route";
 
 import { FlightStatus } from "@/features/flightCore/getFlightStatus";
+import { FlightGuidanceState } from "@/features/guidance/types";
 import { SituationMessage } from "@/features/interpreter/situations/getSituationMessage";
 import { SituationType } from "@/features/interpreter/situations/types";
 import { FlightRhythmState } from "@/features/rhythm/types";
@@ -21,7 +22,7 @@ export type FlightSummary = {
   destinationCode: string;
 
   routeLabel: string;
-  
+
   scheduledDepartureLabel: string;
   scheduledArrivalLabel: string;
 };
@@ -37,6 +38,7 @@ export type FlightSnapshot = {
   situation: SituationType;
   rhythm: FlightRhythmState;
   environment: EnvironmentContext;
+  guidance: FlightGuidanceState;
   reassurance: SituationMessage;
   expectedMoment: NextExpectedMoment;
 };
