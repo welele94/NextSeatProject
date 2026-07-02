@@ -2,13 +2,15 @@ import { FlightProgress } from "@/types/flight";
 
 import { FlightStatus } from "@/features/flightCore/getFlightStatus";
 
-import { FlightGuidanceState } from "./types";
+import { FlightGuidanceState, OfflineReadiness } from "./types";
 
 type ResolveGuidanceStateInput = {
   progress: FlightProgress;
   status: FlightStatus;
   lastLiveUpdateAt?: string | null;
   userConfirmedPhase?: boolean;
+  hasOfflineFlightPack?: boolean;
+  hasRoutePatternSummary?: boolean;
 };
 
 function getMinutesSinceLastLiveUpdate(
@@ -27,18 +29,44 @@ function getMinutesSinceLastLiveUpdate(
   return Math.max(Math.round((Date.now() - lastUpdateTime) / 60000), 0);
 }
 
+function resolveOfflineReadiness({
+  hasOfflineFlightPack,
+  hasRoutePatternSummary
+}: {
+  hasOfflineFlightPack: boolean;
+  hasRoutePatternSummary: boolean;
+}): OfflineReadiness {
+  if (hasOfflineFlightPack && hasRoutePatternSummary) {
+    return "ready";
+  }
+
+  if (hasOfflineFlightPack) {
+    return "partial";
+  }
+
+  return "notReady";
+}
+
 export function resolveGuidanceState({
   progress,
   status,
   lastLiveUpdateAt = null,
-  userConfirmedPhase = false
+  userConfirmedPhase = false,
+  hasOfflineFlightPack = true,
+  hasRoutePatternSummary = false
 }: ResolveGuidanceStateInput): FlightGuidanceState {
+  const offlineReadiness = resolveOfflineReadiness({
+    hasOfflineFlightPack,
+    hasRoutePatternSummary
+  });
+
   if (userConfirmedPhase) {
     return {
       confidenceLevel: "high",
       predictionMode: "userAdjusted",
       phaseSource: "userConfirmed",
       lastLiveUpdateAt,
+      offlineReadiness,
       isOfflinePrediction: true,
       shouldAskForConfirmation: false,
       userFacingLabel: "Adjusted guidance",
@@ -52,14 +80,18 @@ export function resolveGuidanceState({
   if (minutesSinceLiveUpdate !== undefined && minutesSinceLiveUpdate <= 20) {
     return {
       confidenceLevel: "high",
-      predictionMode: "live",
+      predictionMode: offlineReadiness === "ready" ? "readyOffline" : "live",
       phaseSource: "liveData",
       lastLiveUpdateAt,
+      offlineReadiness,
       isOfflinePrediction: false,
       shouldAskForConfirmation: false,
-      userFacingLabel: "Live guidance",
+      userFacingLabel:
+        offlineReadiness === "ready" ? "Ready to fly offline" : "Live guidance",
       userFacingMessage:
-        "This guidance is based on the latest available flight information."
+        offlineReadiness === "ready"
+          ? "The app has saved enough flight information to keep guiding you calmly if you go offline."
+          : "This guidance is based on the latest available flight information."
     };
   }
 
@@ -71,8 +103,21 @@ export function resolveGuidanceState({
     predictionMode: "offlineEstimated",
     phaseSource: progress.progressPercent > 65 ? "routeStatistics" : "timeEstimate",
     lastLiveUpdateAt,
+    offlineReadiness,
     isOfflinePrediction: true,
     shouldAskForConfirmation,
+    confirmationPrompt: shouldAskForConfirmation
+      ? {
+          title: "Does this still feel accurate?",
+          body:
+            "This helps the app keep its guidance aligned with what you are noticing.",
+          options: [
+            { id: "yes", label: "Yes" },
+            { id: "notSure", label: "Not sure" },
+            { id: "changed", label: "Something changed" }
+          ]
+        }
+      : undefined,
     userFacingLabel: shouldAskForConfirmation
       ? "Quick check"
       : "Estimated guidance",
