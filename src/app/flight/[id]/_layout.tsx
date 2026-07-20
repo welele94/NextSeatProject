@@ -7,7 +7,12 @@ import { colors, spacing, typography } from "@/theme";
 export default function FlightTabsLayout() {
   const router = useRouter();
 
-  function goToHome() {
+  function goBack() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
     router.replace("/");
   }
 
@@ -22,14 +27,14 @@ export default function FlightTabsLayout() {
         },
         headerTitle: "",
         headerLeft: () => (
-          <Pressable onPress={goToHome} style={styles.backButton}>
+          <Pressable onPress={goBack} style={styles.backButton}>
             <Ionicons
               name="chevron-back"
               size={20}
               color={colors.primaryBlue}
             />
 
-            <Text style={styles.backButtonText}>Home</Text>
+            <Text style={styles.backButtonText}>Back</Text>
           </Pressable>
         ),
         tabBarActiveTintColor: colors.primaryBlue,
@@ -39,9 +44,9 @@ export default function FlightTabsLayout() {
           fontSize: 12
         },
         tabBarStyle: {
-          minHeight: 72,
+          height: 86,
           paddingTop: 8,
-          paddingBottom: 12,
+          paddingBottom: 18,
           borderTopColor: colors.border,
           backgroundColor: colors.surface
         }
