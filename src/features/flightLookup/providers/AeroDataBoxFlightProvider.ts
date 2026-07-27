@@ -17,6 +17,7 @@ type AeroDataBoxMovement = {
     name?: string;
     shortName?: string;
     municipalityName?: string;
+    timeZone?: string;
   };
   scheduledTime?: AeroDataBoxTime;
   revisedTime?: AeroDataBoxTime;
@@ -32,6 +33,9 @@ type AeroDataBoxFlight = {
   status?: string;
   departure?: AeroDataBoxMovement;
   arrival?: AeroDataBoxMovement;
+  aircraft?: {
+    model?: string;
+  };
   airline?: {
     name?: string;
     iata?: string;
@@ -87,6 +91,8 @@ function mapStatus(status?: string): ExternalFlightStatus {
     case "cancelled":
     case "canceled":
       return "cancelled";
+    case "diverted":
+      return "diverted";
     default:
       return "unknown";
   }
@@ -106,10 +112,14 @@ function normalizeAeroDataBoxUtc(value?: string): string | undefined {
   return Number.isNaN(Date.parse(normalized)) ? undefined : new Date(normalized).toISOString();
 }
 
-function preferredEstimate(movement?: AeroDataBoxMovement): string | undefined {
-  return normalizeAeroDataBoxUtc(
-    movement?.predictedTime?.utc ?? movement?.revisedTime?.utc ?? movement?.actualTime?.utc
-  );
+function normalizeAeroDataBoxLocal(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  return Number.isNaN(Date.parse(normalized)) ? undefined : normalized;
+}
+
+function preferredEstimate(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
+  return movement?.predictedTime ?? movement?.revisedTime ?? movement?.actualTime;
 }
 
 function calculateDurationMinutes(departureUtc?: string, arrivalUtc?: string): number | undefined {
@@ -187,6 +197,8 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
     const scheduledDepartureUtc = normalizeAeroDataBoxUtc(flight.departure?.scheduledTime?.utc);
     const scheduledArrivalUtc = normalizeAeroDataBoxUtc(flight.arrival?.scheduledTime?.utc);
+    const estimatedDeparture = preferredEstimate(flight.departure);
+    const estimatedArrival = preferredEstimate(flight.arrival);
 
     return {
       ok: true,
@@ -195,17 +207,32 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           flightNumber: flight.number ?? flightNumber,
           airlineCode: flight.airline?.iata ?? flightNumber.match(/^[A-Z0-9]{2,3}/)?.[0],
           airlineName: flight.airline?.name,
+
           departureAirport,
           departureAirportCode: flight.departure?.airport?.iata,
+          departureCity: flight.departure?.airport?.municipalityName,
+          departureTimeZone: flight.departure?.airport?.timeZone,
+
           arrivalAirport,
           arrivalAirportCode: flight.arrival?.airport?.iata,
+          arrivalCity: flight.arrival?.airport?.municipalityName,
+          arrivalTimeZone: flight.arrival?.airport?.timeZone,
+
           scheduledDepartureUtc,
+          scheduledDepartureLocal: normalizeAeroDataBoxLocal(flight.departure?.scheduledTime?.local),
           scheduledArrivalUtc,
-          estimatedDepartureUtc: preferredEstimate(flight.departure),
-          estimatedArrivalUtc: preferredEstimate(flight.arrival),
+          scheduledArrivalLocal: normalizeAeroDataBoxLocal(flight.arrival?.scheduledTime?.local),
+
+          estimatedDepartureUtc: normalizeAeroDataBoxUtc(estimatedDeparture?.utc),
+          estimatedDepartureLocal: normalizeAeroDataBoxLocal(estimatedDeparture?.local),
+          estimatedArrivalUtc: normalizeAeroDataBoxUtc(estimatedArrival?.utc),
+          estimatedArrivalLocal: normalizeAeroDataBoxLocal(estimatedArrival?.local),
+
           departureTerminal: cleanOperationalValue(flight.departure?.terminal),
           departureGate: cleanOperationalValue(flight.departure?.gate),
           baggageBelt: cleanOperationalValue(flight.arrival?.baggageBelt),
+          aircraftModel: cleanOperationalValue(flight.aircraft?.model),
+
           status: mapStatus(flight.status),
           durationMinutes: calculateDurationMinutes(scheduledDepartureUtc, scheduledArrivalUtc)
         },
