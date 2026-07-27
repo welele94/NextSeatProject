@@ -2,7 +2,7 @@ import { Flight } from "@/types/flight";
 
 import { FlightSummary } from "./types";
 
-function formatScheduledTime(timestamp: string): string {
+function formatDeviceTime(timestamp: string): string {
   const date = new Date(timestamp);
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -28,8 +28,15 @@ export function buildFlightSummary(flight: Flight): FlightSummary {
     originCode: flight.origin.code,
     destinationCode: flight.destination.code,
     routeLabel: `${flight.origin.city} → ${flight.destination.city}`,
-    scheduledDepartureLabel: formatScheduledTime(flight.schedule.scheduledDeparture),
-    scheduledArrivalLabel: formatScheduledTime(flight.schedule.scheduledArrival),
+    scheduledDepartureLabel: formatDeviceTime(flight.schedule.scheduledDeparture),
+    scheduledArrivalLabel: formatDeviceTime(flight.schedule.scheduledArrival),
+    revisedDepartureLabel: flight.schedule.revisedDeparture
+      ? formatDeviceTime(flight.schedule.revisedDeparture)
+      : undefined,
+    revisedArrivalLabel: flight.schedule.revisedArrival
+      ? formatDeviceTime(flight.schedule.revisedArrival)
+      : undefined,
+    timeDisplayNote: "Times shown in your phone’s time.",
     scheduledDurationMinutes:
       durationBetween(flight.schedule.scheduledDeparture, flight.schedule.scheduledArrival) ??
       flight.schedule.estimatedDurationMinutes,
