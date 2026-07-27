@@ -1,15 +1,10 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import type { FlightSnapshot } from "@/features/flightSnapshot/types";
-
-import { formatMinutes } from "@/features/time/formatMinutes";
-import { colors, radius, rhythmUi, spacing, typography } from "@/theme";
-import type { JourneyPhase, JourneyPhaseId } from "@/types/journey";
-
-
-import { useFlightSnapshot } from "./useFlightSnapshot";
-
+import { colors, radius, spacing, typography } from "@/theme";
+import type { JourneyPhaseId } from "@/types/journey";
 
 type JourneyTimelineStepId = "pre_flight" | JourneyPhaseId | "after_flight";
 
@@ -19,6 +14,7 @@ type JourneyStep = {
   id: JourneyTimelineStepId;
   title: string;
   time?: string;
+  helper: string;
   state: JourneyStepState;
 };
 
@@ -44,11 +40,22 @@ const journeyLabels: Record<JourneyTimelineStepId, string> = {
   after_flight: "After flight"
 };
 
-function addMinutesTotimeLabel(
+const journeyHelpers: Record<JourneyTimelineStepId, string> = {
+  pre_flight: "Before departure",
+  departure: "Leaving the gate and starting the journey",
+  climb: "The aircraft settles into the first part of flight",
+  cruise: "Usually the calmest and steadiest part",
+  descent: "Gradual preparation for arrival",
+  approach: "The final part before landing",
+  arrival: "Expected arrival",
+  after_flight: "After landing"
+};
+
+function addMinutesToTimeLabel(
   timeLabel: string | undefined,
   minutesToAdd: number
 ): string | undefined {
-  if(!timeLabel || /^\d{2}:\d{2}$/.test(timeLabel)){
+  if (!timeLabel || !/^\d{2}:\d{2}$/.test(timeLabel)) {
     return undefined;
   }
 
@@ -61,18 +68,17 @@ function addMinutesTotimeLabel(
   date.setMilliseconds(0);
 
   const nextHours = String(date.getHours()).padStart(2, "0");
-  const nextMinutes = String(date.getMinutes()).padStart(2,"0");
+  const nextMinutes = String(date.getMinutes()).padStart(2, "0");
 
   return `${nextHours}:${nextMinutes}`;
+}
 
-};
-
-function getCurrentTimelineStep(snapshot: FlightSnapshot): JourneyTimelineStepId{
-  if (snapshot.progress.isBeforeDeparture){
+function getCurrentTimelineStep(snapshot: FlightSnapshot): JourneyTimelineStepId {
+  if (snapshot.progress.isBeforeDeparture) {
     return "pre_flight";
   }
 
-  if (snapshot.progress.isAfterArrival){
+  if (snapshot.progress.isAfterArrival) {
     return "after_flight";
   }
 
@@ -84,80 +90,47 @@ function getCurrentJourneyIndex(snapshot: FlightSnapshot): number {
   const index = journeyOrder.indexOf(currentStep);
 
   return index >= 0 ? index : 0;
-};
+}
 
-function buildJourneySteps(snapshot: FlightSnapshot): JourneyStep[]{
+function buildJourneySteps(snapshot: FlightSnapshot): JourneyStep[] {
   const currentIndex = getCurrentJourneyIndex(snapshot);
 
-  const flightSummary = snapshot.flightSummary as typeof snapshot.flightSummary & {
-    scheduledDepartureLabel?: string;
-    scheduledArrivalLabel?: string;
-  };
-
-  const departureTime = flightSummary.scheduledDepartureLabel ?? "08:10";
-  const arrivalTime = flightSummary.scheduledArrivalLabel ?? "09:10";
+  const departureTime =
+    snapshot.flightSummary.revisedDepartureLabel ?? snapshot.flightSummary.scheduledDepartureLabel;
+  const arrivalTime =
+    snapshot.flightSummary.revisedArrivalLabel ?? snapshot.flightSummary.scheduledArrivalLabel;
 
   const timeByStep: Record<JourneyTimelineStepId, string | undefined> = {
     pre_flight: "Before departure",
     departure: departureTime,
-    climb: addMinutesTotimeLabel(departureTime, 15),
-    cruise: addMinutesTotimeLabel(departureTime, 30),
+    climb: addMinutesToTimeLabel(departureTime, 15),
+    cruise: addMinutesToTimeLabel(departureTime, 30),
     descent: "Later",
     approach: "Later",
     arrival: `Expected ${arrivalTime}`,
     after_flight: "After landing"
-
   };
 
   return journeyOrder.map((stepId, index) => {
-    const state = 
-    index < currentIndex
-      ? "completed"
-      : index === currentIndex
-        ? "current" : "upcoming";
+    const state =
+      index < currentIndex
+        ? "completed"
+        : index === currentIndex
+          ? "current"
+          : "upcoming";
 
     return {
       id: stepId,
       title: journeyLabels[stepId],
       time: timeByStep[stepId],
+      helper: journeyHelpers[stepId],
       state
-    }
-  })
+    };
+  });
 }
 
-export default function JourneyTab(){
-  const { snapshot} = useFlightSnapshot();
-
-  if (!snapshot){
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Flight not found</Text>
-          <Text style={styles.emptyBody}>
-            This flight is not available on this device.
-          </Text>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
-  const steps = buildJourneySteps(snapshot);
-
+function JourneyTimeline({ steps }: { steps: JourneyStep[] }) {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
-        <Text style={styles.screenTitle}>Your journey</Text>
-
-        <JourneyTimeline steps={steps} />
-      </ScrollView>
-    </SafeAreaView>
-  )
-
-  function JourneyTimeline({steps}: {steps: JourneyStep[] }){
-    return (
     <View style={styles.timeline}>
       {steps.map((step, index) => {
         const isLast = index === steps.length - 1;
@@ -209,6 +182,8 @@ export default function JourneyTab(){
                     {step.time}
                   </Text>
                 ) : null}
+
+                <Text style={styles.stepHelper}>{step.helper}</Text>
               </View>
 
               {isCompleted || isCurrent ? (
@@ -237,18 +212,52 @@ export default function JourneyTab(){
     </View>
   );
 }
+
+export default function JourneyTab() {
+  const { snapshot } = useFlightSnapshot();
+
+  if (!snapshot) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Flight not found</Text>
+          <Text style={styles.emptyBody}>
+            This flight is not available on this device.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const steps = buildJourneySteps(snapshot);
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        <Text style={styles.screenTitle}>Your journey</Text>
+        <JourneyTimeline steps={steps} />
+        <Text style={styles.timeNote}>{snapshot.flightSummary.timeDisplayNote}</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.surface
   },
 
   content: {
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
     paddingHorizontal: spacing.xl,
     paddingTop: spacing["4xl"],
-    paddingBottom: 108
+    paddingBottom: 132
   },
 
   screenTitle: {
@@ -260,12 +269,12 @@ const styles = StyleSheet.create({
 
   timeline: {
     width: "100%",
-    maxWidth: 360,
+    maxWidth: 380,
     alignSelf: "center"
   },
 
   timelineRow: {
-    minHeight: 72,
+    minHeight: 84,
     flexDirection: "row"
   },
 
@@ -320,7 +329,7 @@ const styles = StyleSheet.create({
 
   stepContent: {
     flex: 1,
-    minHeight: 72,
+    minHeight: 84,
     flexDirection: "row",
     justifyContent: "space-between",
     gap: spacing.md,
@@ -349,6 +358,11 @@ const styles = StyleSheet.create({
 
   stepTimeUpcoming: {
     color: "#9CAFC3"
+  },
+
+  stepHelper: {
+    ...typography.caption,
+    color: colors.textSecondary
   },
 
   badge: {
@@ -381,6 +395,13 @@ const styles = StyleSheet.create({
     color: colors.primaryBlue
   },
 
+  timeNote: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: spacing.xl
+  },
+
   emptyState: {
     flex: 1,
     justifyContent: "center",
@@ -397,4 +418,4 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary
   }
-})
+});
