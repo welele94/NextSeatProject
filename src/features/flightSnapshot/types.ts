@@ -15,16 +15,20 @@ export type FlightSummary = {
   flightNumber: string;
   airline: string;
   aircraftLabel: string;
-
   originLabel: string;
   destinationLabel: string;
   originCode: string;
   destinationCode: string;
-
   routeLabel: string;
-
   scheduledDepartureLabel: string;
   scheduledArrivalLabel: string;
+  scheduledDurationMinutes: number;
+  revisedDurationMinutes?: number;
+  revisedArrival?: string;
+  providerStatus?: string;
+  departureTerminal?: string;
+  departureGate?: string;
+  baggageBelt?: string;
 };
 
 export type FlightSnapshot = {
