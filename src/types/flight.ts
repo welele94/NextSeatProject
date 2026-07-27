@@ -24,6 +24,7 @@ export type FlightOperations = {
     | "landed"
     | "delayed"
     | "cancelled"
+    | "diverted"
     | "unknown";
   departureTerminal?: string;
   departureGate?: string;
