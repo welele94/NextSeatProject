@@ -7,9 +7,8 @@ import {
   NextExpectedMomentCard
 } from "@/components/flight/Sprint10Cards";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
+import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing, typography } from "@/theme";
-
-import { useFlightSnapshot } from "./useFlightSnapshot";
 
 export default function NextMomentScreen() {
   const { snapshot } = useFlightSnapshot();
@@ -57,6 +56,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF9F3"
   },
   content: {
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
     gap: spacing.xl,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing["3xl"],
