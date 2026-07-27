@@ -22,6 +22,9 @@ type AeroDataBoxMovement = {
   revisedTime?: AeroDataBoxTime;
   predictedTime?: AeroDataBoxTime;
   actualTime?: AeroDataBoxTime;
+  terminal?: string;
+  gate?: string;
+  baggageBelt?: string;
 };
 
 type AeroDataBoxFlight = {
@@ -59,6 +62,11 @@ function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function cleanOperationalValue(value?: string): string | undefined {
+  const cleaned = value?.trim();
+  return cleaned || undefined;
+}
+
 function mapStatus(status?: string): ExternalFlightStatus {
   switch (status?.trim().toLowerCase()) {
     case "scheduled":
@@ -93,49 +101,27 @@ function preferredAirportName(movement?: AeroDataBoxMovement): string | undefine
 }
 
 function normalizeAeroDataBoxUtc(value?: string): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
+  if (!value) return undefined;
   const normalized = value.includes("T") ? value : value.replace(" ", "T");
   return Number.isNaN(Date.parse(normalized)) ? undefined : new Date(normalized).toISOString();
 }
 
 function preferredEstimate(movement?: AeroDataBoxMovement): string | undefined {
   return normalizeAeroDataBoxUtc(
-    movement?.predictedTime?.utc ??
-      movement?.revisedTime?.utc ??
-      movement?.actualTime?.utc
+    movement?.predictedTime?.utc ?? movement?.revisedTime?.utc ?? movement?.actualTime?.utc
   );
 }
 
-function calculateDurationMinutes(
-  departureUtc?: string,
-  arrivalUtc?: string
-): number | undefined {
-  if (!departureUtc || !arrivalUtc) {
-    return undefined;
-  }
-
+function calculateDurationMinutes(departureUtc?: string, arrivalUtc?: string): number | undefined {
+  if (!departureUtc || !arrivalUtc) return undefined;
   const departure = Date.parse(departureUtc);
   const arrival = Date.parse(arrivalUtc);
-
-  if (Number.isNaN(departure) || Number.isNaN(arrival) || arrival <= departure) {
-    return undefined;
-  }
-
+  if (Number.isNaN(departure) || Number.isNaN(arrival) || arrival <= departure) return undefined;
   return Math.round((arrival - departure) / 60000);
 }
 
-function chooseFlight(
-  flights: AeroDataBoxFlight[],
-  requestedFlightNumber: string
-): AeroDataBoxFlight | undefined {
-  const exact = flights.find(
-    (flight) => normalizeFlightNumber(flight.number ?? "") === requestedFlightNumber
-  );
-
-  return exact ?? flights[0];
+function chooseFlight(flights: AeroDataBoxFlight[], requestedFlightNumber: string) {
+  return flights.find((flight) => normalizeFlightNumber(flight.number ?? "") === requestedFlightNumber) ?? flights[0];
 }
 
 function errorMessage(error: unknown): string {
@@ -153,27 +139,16 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
   async lookupFlight(input: FlightLookupInput): Promise<FlightLookupResult> {
     const flightNumber = normalizeFlightNumber(input.flightNumber);
-
-    if (!isValidFlightNumber(flightNumber)) {
-      return { ok: false, reason: "invalid_flight_number" };
-    }
+    if (!isValidFlightNumber(flightNumber)) return { ok: false, reason: "invalid_flight_number" };
 
     const date = input.date ?? todayUtc();
+    if (!isValidDate(date)) return { ok: false, reason: "invalid_flight_number" };
 
-    if (!isValidDate(date)) {
-      return { ok: false, reason: "invalid_flight_number" };
-    }
-
-    const url = new URL(
-      `/flights/number/${encodeURIComponent(flightNumber)}/${encodeURIComponent(date)}`,
-      RAPID_API_BASE_URL
-    );
-
+    const url = new URL(`/flights/number/${encodeURIComponent(flightNumber)}/${encodeURIComponent(date)}`, RAPID_API_BASE_URL);
     url.searchParams.set("withAircraftImage", "false");
     url.searchParams.set("withLocation", "false");
 
     let response: Response;
-
     try {
       response = await this.fetchImpl(url.toString(), {
         method: "GET",
@@ -184,82 +159,41 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
         }
       });
     } catch (error) {
-      console.error("AeroDataBox fetch failed", {
-        flightNumber,
-        date,
-        message: errorMessage(error)
-      });
+      console.error("AeroDataBox fetch failed", { flightNumber, date, message: errorMessage(error) });
       return { ok: false, reason: "provider_unavailable" };
     }
 
-    if (response.status === 404) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    if (response.status === 429) {
-      console.error("AeroDataBox rate limited the request", { flightNumber, date });
-      return { ok: false, reason: "rate_limited" };
-    }
-
+    if (response.status === 404) return { ok: false, reason: "not_found" };
+    if (response.status === 429) return { ok: false, reason: "rate_limited" };
     if (!response.ok) {
-      let responseBody = "";
-
-      try {
-        responseBody = (await response.text()).slice(0, 500);
-      } catch {
-        responseBody = "<unable to read response body>";
-      }
-
-      console.error("AeroDataBox returned a non-success response", {
-        flightNumber,
-        date,
-        status: response.status,
-        statusText: response.statusText,
-        body: responseBody
-      });
-
+      console.error("AeroDataBox returned a non-success response", { flightNumber, date, status: response.status });
       return { ok: false, reason: "provider_unavailable" };
     }
 
     let payload: unknown;
-
     try {
       payload = await response.json();
     } catch (error) {
-      console.error("AeroDataBox returned invalid JSON", {
-        flightNumber,
-        date,
-        message: errorMessage(error)
-      });
+      console.error("AeroDataBox returned invalid JSON", { message: errorMessage(error) });
       return { ok: false, reason: "provider_unavailable" };
     }
 
-    if (!Array.isArray(payload) || payload.length === 0) {
-      return { ok: false, reason: "not_found" };
-    }
+    if (!Array.isArray(payload) || payload.length === 0) return { ok: false, reason: "not_found" };
 
     const flight = chooseFlight(payload as AeroDataBoxFlight[], flightNumber);
     const departureAirport = preferredAirportName(flight?.departure);
     const arrivalAirport = preferredAirportName(flight?.arrival);
+    if (!flight || !departureAirport || !arrivalAirport) return { ok: false, reason: "not_found" };
 
-    if (!flight || !departureAirport || !arrivalAirport) {
-      return { ok: false, reason: "not_found" };
-    }
-
-    const scheduledDepartureUtc = normalizeAeroDataBoxUtc(
-      flight.departure?.scheduledTime?.utc
-    );
-    const scheduledArrivalUtc = normalizeAeroDataBoxUtc(
-      flight.arrival?.scheduledTime?.utc
-    );
+    const scheduledDepartureUtc = normalizeAeroDataBoxUtc(flight.departure?.scheduledTime?.utc);
+    const scheduledArrivalUtc = normalizeAeroDataBoxUtc(flight.arrival?.scheduledTime?.utc);
 
     return {
       ok: true,
       data: normalizeExternalFlightResponse(
         {
           flightNumber: flight.number ?? flightNumber,
-          airlineCode:
-            flight.airline?.iata ?? flightNumber.match(/^[A-Z0-9]{2,3}/)?.[0],
+          airlineCode: flight.airline?.iata ?? flightNumber.match(/^[A-Z0-9]{2,3}/)?.[0],
           airlineName: flight.airline?.name,
           departureAirport,
           departureAirportCode: flight.departure?.airport?.iata,
@@ -269,11 +203,11 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           scheduledArrivalUtc,
           estimatedDepartureUtc: preferredEstimate(flight.departure),
           estimatedArrivalUtc: preferredEstimate(flight.arrival),
+          departureTerminal: cleanOperationalValue(flight.departure?.terminal),
+          departureGate: cleanOperationalValue(flight.departure?.gate),
+          baggageBelt: cleanOperationalValue(flight.arrival?.baggageBelt),
           status: mapStatus(flight.status),
-          durationMinutes: calculateDurationMinutes(
-            scheduledDepartureUtc,
-            scheduledArrivalUtc
-          )
+          durationMinutes: calculateDurationMinutes(scheduledDepartureUtc, scheduledArrivalUtc)
         },
         "aerodatabox"
       )
