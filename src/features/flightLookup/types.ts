@@ -10,6 +10,7 @@ export type ExternalFlightStatus =
   | "landed"
   | "delayed"
   | "cancelled"
+  | "diverted"
   | "unknown";
 
 export type FlightLookupProviderId =
@@ -22,17 +23,32 @@ export type ExternalFlightSeed = {
   flightNumber: string;
   airlineCode?: string;
   airlineName?: string;
+
   departureAirport: string;
   departureAirportCode?: string;
+  departureCity?: string;
+  departureTimeZone?: string;
+
   arrivalAirport: string;
   arrivalAirportCode?: string;
+  arrivalCity?: string;
+  arrivalTimeZone?: string;
+
   scheduledDepartureUtc?: string;
+  scheduledDepartureLocal?: string;
   scheduledArrivalUtc?: string;
+  scheduledArrivalLocal?: string;
+
   estimatedDepartureUtc?: string;
+  estimatedDepartureLocal?: string;
   estimatedArrivalUtc?: string;
+  estimatedArrivalLocal?: string;
+
   departureTerminal?: string;
   departureGate?: string;
   baggageBelt?: string;
+  aircraftModel?: string;
+
   status?: ExternalFlightStatus;
   durationMinutes?: number;
   provider: FlightLookupProviderId;
