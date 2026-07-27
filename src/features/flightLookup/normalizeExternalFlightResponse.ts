@@ -16,6 +16,9 @@ type NormalizableFlightRecord = {
   scheduledArrivalUtc?: unknown;
   estimatedDepartureUtc?: unknown;
   estimatedArrivalUtc?: unknown;
+  departureTerminal?: unknown;
+  departureGate?: unknown;
+  baggageBelt?: unknown;
   status?: unknown;
   durationMinutes?: unknown;
 };
@@ -38,27 +41,18 @@ function optionalString(value: unknown): string | undefined {
 
 function requiredString(value: unknown, fieldName: string): string {
   const normalized = optionalString(value);
-
-  if (!normalized) {
-    throw new Error(`Missing normalized field: ${fieldName}`);
-  }
-
+  if (!normalized) throw new Error(`Missing normalized field: ${fieldName}`);
   return normalized;
 }
 
 function optionalIsoDate(value: unknown): string | undefined {
   const normalized = optionalString(value);
-
-  if (!normalized || Number.isNaN(Date.parse(normalized))) {
-    return undefined;
-  }
-
+  if (!normalized || Number.isNaN(Date.parse(normalized))) return undefined;
   return new Date(normalized).toISOString();
 }
 
 function normalizeStatus(value: unknown): ExternalFlightStatus {
-  return typeof value === "string" &&
-    allowedStatuses.includes(value as ExternalFlightStatus)
+  return typeof value === "string" && allowedStatuses.includes(value as ExternalFlightStatus)
     ? (value as ExternalFlightStatus)
     : "unknown";
 }
@@ -69,49 +63,28 @@ function optionalDuration(value: unknown): number | undefined {
     : undefined;
 }
 
-/**
- * Converts an already provider-mapped record into the public safe contract.
- * Raw provider responses must first be mapped by their provider adapter.
- * Forbidden telemetry fields are intentionally absent from this contract.
- */
 export function normalizeExternalFlightResponse(
   providerResponse: NormalizableFlightRecord,
   provider: FlightLookupProviderId,
   fetchedAt = new Date().toISOString()
 ): ExternalFlightSeed {
   return {
-    flightNumber: requiredString(
-      providerResponse.flightNumber,
-      "flightNumber"
-    ).replace(/\s+/g, "").toUpperCase(),
+    flightNumber: requiredString(providerResponse.flightNumber, "flightNumber")
+      .replace(/\s+/g, "")
+      .toUpperCase(),
     airlineCode: optionalString(providerResponse.airlineCode)?.toUpperCase(),
     airlineName: optionalString(providerResponse.airlineName),
-    departureAirport: requiredString(
-      providerResponse.departureAirport,
-      "departureAirport"
-    ),
-    departureAirportCode: optionalString(
-      providerResponse.departureAirportCode
-    )?.toUpperCase(),
-    arrivalAirport: requiredString(
-      providerResponse.arrivalAirport,
-      "arrivalAirport"
-    ),
-    arrivalAirportCode: optionalString(
-      providerResponse.arrivalAirportCode
-    )?.toUpperCase(),
-    scheduledDepartureUtc: optionalIsoDate(
-      providerResponse.scheduledDepartureUtc
-    ),
-    scheduledArrivalUtc: optionalIsoDate(
-      providerResponse.scheduledArrivalUtc
-    ),
-    estimatedDepartureUtc: optionalIsoDate(
-      providerResponse.estimatedDepartureUtc
-    ),
-    estimatedArrivalUtc: optionalIsoDate(
-      providerResponse.estimatedArrivalUtc
-    ),
+    departureAirport: requiredString(providerResponse.departureAirport, "departureAirport"),
+    departureAirportCode: optionalString(providerResponse.departureAirportCode)?.toUpperCase(),
+    arrivalAirport: requiredString(providerResponse.arrivalAirport, "arrivalAirport"),
+    arrivalAirportCode: optionalString(providerResponse.arrivalAirportCode)?.toUpperCase(),
+    scheduledDepartureUtc: optionalIsoDate(providerResponse.scheduledDepartureUtc),
+    scheduledArrivalUtc: optionalIsoDate(providerResponse.scheduledArrivalUtc),
+    estimatedDepartureUtc: optionalIsoDate(providerResponse.estimatedDepartureUtc),
+    estimatedArrivalUtc: optionalIsoDate(providerResponse.estimatedArrivalUtc),
+    departureTerminal: optionalString(providerResponse.departureTerminal),
+    departureGate: optionalString(providerResponse.departureGate),
+    baggageBelt: optionalString(providerResponse.baggageBelt),
     status: normalizeStatus(providerResponse.status),
     durationMinutes: optionalDuration(providerResponse.durationMinutes),
     provider,
