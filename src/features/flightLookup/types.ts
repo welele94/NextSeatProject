@@ -39,6 +39,7 @@ export type ExternalFlightSeed = {
 export type FlightLookupFailureReason =
   | "not_found"
   | "provider_unavailable"
+  | "provider_not_configured"
   | "invalid_flight_number"
   | "rate_limited"
   | "unknown";
