@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  AirportInfoCard,
   FlightDetailsCard,
   GuidanceModeBadge,
   OfflineReadyCard,
@@ -44,8 +45,9 @@ export default function MoreTab() {
           phaseLabel={ui.currentPhaseLabel}
         />
 
+        <AirportInfoCard title="Departure information" info={ui.airportInfo} />
+        <AirportInfoCard title="Baggage information" info={ui.baggageInfo} />
         <RoutePatternCard summary={ui.routePatternSummary} />
-
         <OfflineReadyCard status={ui.offlineGuidanceStatus} />
       </ScrollView>
     </SafeAreaView>
