@@ -1,6 +1,5 @@
 import { ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -13,13 +12,10 @@ import {
   OfflineReadyCard,
   StatusHeroCard
 } from "@/components/flight/Sprint10Cards";
-import { removePreparedFlight } from "@/features/flightLookup/preparedFlightStorage";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { colors, radius, spacing } from "@/theme";
 
 import { useFlightSnapshot } from "./useFlightSnapshot";
-
-const AFTER_FLIGHT_WINDOW_MS = 90 * 60 * 1000;
 
 function SkyBackground() {
   return (
@@ -32,23 +28,9 @@ function SkyBackground() {
 }
 
 export default function OverviewTab() {
-  const { snapshot } = useFlightSnapshot();
+  const { snapshot, endJourney } = useFlightSnapshot();
 
-  useEffect(() => {
-    if (!snapshot || snapshot.status !== "completed") return;
-
-    const revisedArrival = snapshot.flightSummary.revisedArrival;
-    if (!revisedArrival) return;
-
-    const archiveAt = Date.parse(revisedArrival) + AFTER_FLIGHT_WINDOW_MS;
-    if (!Number.isNaN(archiveAt) && Date.now() >= archiveAt) {
-      void removePreparedFlight(snapshot.flightSummary.id).then(() => router.replace("/"));
-    }
-  }, [snapshot]);
-
-  if (!snapshot) {
-    return <SafeAreaView style={styles.safeArea} />;
-  }
+  if (!snapshot) return <SafeAreaView style={styles.safeArea} />;
 
   const ui = buildFlightUiSnapshot(snapshot);
   const safeSnapshot = snapshot;
@@ -60,23 +42,11 @@ export default function OverviewTab() {
     });
   }
 
-  async function endJourney() {
-    await removePreparedFlight(safeSnapshot.flightSummary.id);
-    router.replace("/");
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <SkyBackground />
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
-        <GuidanceModeBadge
-          confidenceLevel={ui.confidenceLevel}
-          predictionMode={ui.predictionMode}
-        />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
 
         <StatusHeroCard
           title={ui.reassuranceMessage.title}
@@ -93,27 +63,21 @@ export default function OverviewTab() {
           progressPercent={snapshot.progress.progressPercent}
         />
 
-        <NextExpectedMomentCard
-          moment={ui.nextExpectedMoment}
-          onPress={openNextMoment}
-        />
+        <NextExpectedMomentCard moment={ui.nextExpectedMoment} onPress={openNextMoment} />
 
         <AirportInfoCard title="After landing" info={ui.baggageInfo} />
 
         <OfflineReadyCard status={ui.offlineGuidanceStatus} compact />
 
         {ui.shouldAskForConfirmation ? <ConfirmationPrompt /> : null}
-        {ui.shouldShowEndJourney ? <EndJourneyButton onPress={endJourney} /> : null}
+        {ui.shouldShowEndJourney ? <EndJourneyButton onPress={() => void endJourney()} /> : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#EAF7FF"
-  },
+  safeArea: { flex: 1, backgroundColor: "#EAF7FF" },
   content: {
     gap: spacing.lg,
     paddingHorizontal: spacing.xl,
