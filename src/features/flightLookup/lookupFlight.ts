@@ -1,3 +1,4 @@
+import { AeroDataBoxFlightProvider } from "./providers/AeroDataBoxFlightProvider";
 import { MockFlightDataProvider } from "./providers/MockFlightDataProvider";
 import {
   FlightDataProvider,
@@ -5,16 +6,23 @@ import {
   FlightLookupResult
 } from "./types";
 
-const defaultProvider: FlightDataProvider = new MockFlightDataProvider();
+function createDefaultProvider(): FlightDataProvider {
+  const rapidApiKey = process.env.RAPIDAPI_KEY;
+
+  if (rapidApiKey) {
+    return new AeroDataBoxFlightProvider({ apiKey: rapidApiKey });
+  }
+
+  return new MockFlightDataProvider();
+}
 
 /**
  * Server-side flight lookup entry point.
- * Replace the injected provider with AirLabs or another provider without
- * changing endpoint or frontend contracts.
+ * The frontend never receives or handles the external provider secret.
  */
 export async function lookupFlight(
   input: FlightLookupInput,
-  provider: FlightDataProvider = defaultProvider
+  provider: FlightDataProvider = createDefaultProvider()
 ): Promise<FlightLookupResult> {
   try {
     return await provider.lookupFlight(input);
