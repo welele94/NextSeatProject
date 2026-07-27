@@ -199,6 +199,9 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
     try {
       payload = await response.json();
+      console.log("========== AERODATABOX RESPONSE ==========");
+      console.log(JSON.stringify(payload, null, 2));
+      console.log("==========================================");
     } catch {
       return { ok: false, reason: "provider_unavailable" };
     }
