@@ -2,10 +2,7 @@ import { ExternalFlightSeed } from "./types";
 import { Flight } from "@/types/flight";
 
 function validIso(value?: string): string | undefined {
-  if (!value || Number.isNaN(Date.parse(value))) {
-    return undefined;
-  }
-
+  if (!value || Number.isNaN(Date.parse(value))) return undefined;
   return new Date(value).toISOString();
 }
 
@@ -14,23 +11,14 @@ function addMinutes(value: string, minutes: number): string {
 }
 
 function safeDuration(seed: ExternalFlightSeed): number {
-  if (seed.durationMinutes && seed.durationMinutes > 0) {
-    return seed.durationMinutes;
-  }
+  if (seed.durationMinutes && seed.durationMinutes > 0) return seed.durationMinutes;
 
-  const departure = validIso(
-    seed.estimatedDepartureUtc ?? seed.scheduledDepartureUtc
-  );
+  const departure = validIso(seed.estimatedDepartureUtc ?? seed.scheduledDepartureUtc);
   const arrival = validIso(seed.estimatedArrivalUtc ?? seed.scheduledArrivalUtc);
 
   if (departure && arrival) {
-    const minutes = Math.round(
-      (new Date(arrival).getTime() - new Date(departure).getTime()) / 60000
-    );
-
-    if (minutes > 0) {
-      return minutes;
-    }
+    const minutes = Math.round((new Date(arrival).getTime() - new Date(departure).getTime()) / 60000);
+    if (minutes > 0) return minutes;
   }
 
   return 120;
@@ -38,19 +26,20 @@ function safeDuration(seed: ExternalFlightSeed): number {
 
 export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
   const durationMinutes = safeDuration(seed);
-  const departure =
-    validIso(seed.estimatedDepartureUtc ?? seed.scheduledDepartureUtc) ??
-    addMinutes(new Date().toISOString(), 60);
-  const arrival =
-    validIso(seed.estimatedArrivalUtc ?? seed.scheduledArrivalUtc) ??
-    addMinutes(departure, durationMinutes);
+  const scheduledDeparture =
+    validIso(seed.scheduledDepartureUtc) ?? addMinutes(new Date().toISOString(), 60);
+  const scheduledArrival =
+    validIso(seed.scheduledArrivalUtc) ?? addMinutes(scheduledDeparture, durationMinutes);
+  const revisedDeparture = validIso(seed.estimatedDepartureUtc);
+  const revisedArrival = validIso(seed.estimatedArrivalUtc);
+  const timelineDeparture = revisedDeparture ?? scheduledDeparture;
 
   const originCode = seed.departureAirportCode ?? seed.departureAirport;
   const destinationCode = seed.arrivalAirportCode ?? seed.arrivalAirport;
   const estimatedDistanceKm = Math.max(Math.round(durationMinutes * 12), 1);
 
   return {
-    id: `external-${seed.flightNumber}-${departure.slice(0, 10)}`,
+    id: `external-${seed.flightNumber}-${timelineDeparture.slice(0, 10)}`,
     flightNumber: seed.flightNumber,
     airline: seed.airlineName ?? seed.airlineCode ?? "Airline",
     aircraftType: "Not required for guidance",
@@ -69,9 +58,17 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       coordinates: { latitude: 0, longitude: 0 }
     },
     schedule: {
-      scheduledDeparture: departure,
-      scheduledArrival: arrival,
+      scheduledDeparture,
+      scheduledArrival,
+      revisedDeparture,
+      revisedArrival,
       estimatedDurationMinutes: durationMinutes
+    },
+    operations: {
+      providerStatus: seed.status,
+      departureTerminal: seed.departureTerminal,
+      departureGate: seed.departureGate,
+      baggageBelt: seed.baggageBelt
     },
     routeDistanceKm: estimatedDistanceKm,
     routeCoordinates: [
