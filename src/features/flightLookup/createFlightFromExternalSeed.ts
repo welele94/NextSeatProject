@@ -36,24 +36,26 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
 
   const originCode = seed.departureAirportCode ?? seed.departureAirport;
   const destinationCode = seed.arrivalAirportCode ?? seed.arrivalAirport;
+  const originCity = seed.departureCity ?? seed.departureAirport;
+  const destinationCity = seed.arrivalCity ?? seed.arrivalAirport;
   const estimatedDistanceKm = Math.max(Math.round(durationMinutes * 12), 1);
 
   return {
     id: `external-${seed.flightNumber}-${timelineDeparture.slice(0, 10)}`,
     flightNumber: seed.flightNumber,
     airline: seed.airlineName ?? seed.airlineCode ?? "Airline",
-    aircraftType: "Not required for guidance",
+    aircraftType: seed.aircraftModel ?? "Aircraft details not needed for guidance",
     origin: {
       code: originCode,
       name: seed.departureAirport,
-      city: seed.departureAirport,
+      city: originCity,
       country: "",
       coordinates: { latitude: 0, longitude: 0 }
     },
     destination: {
       code: destinationCode,
       name: seed.arrivalAirport,
-      city: seed.arrivalAirport,
+      city: destinationCity,
       country: "",
       coordinates: { latitude: 0, longitude: 0 }
     },
@@ -74,13 +76,13 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
     routeCoordinates: [
       {
         id: "origin",
-        label: seed.departureAirport,
+        label: originCity,
         coordinates: { latitude: 0, longitude: 0 },
         distanceFromOriginKm: 0
       },
       {
         id: "destination",
-        label: seed.arrivalAirport,
+        label: destinationCity,
         coordinates: { latitude: 0, longitude: 0 },
         distanceFromOriginKm: estimatedDistanceKm
       }
