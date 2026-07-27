@@ -19,22 +19,25 @@ export async function savePreparedFlight(flight: Flight): Promise<void> {
 
 export async function getPreparedFlight(id: string): Promise<Flight | undefined> {
   const memoryFlight = memoryStore.get(id);
-
-  if (memoryFlight) {
-    return memoryFlight;
-  }
+  if (memoryFlight) return memoryFlight;
 
   try {
     const stored = globalThis.localStorage?.getItem(storageKey(id));
-
-    if (!stored) {
-      return undefined;
-    }
+    if (!stored) return undefined;
 
     const parsed = JSON.parse(stored) as Flight;
     memoryStore.set(id, parsed);
     return parsed;
   } catch {
     return undefined;
+  }
+}
+
+export async function removePreparedFlight(id: string): Promise<void> {
+  memoryStore.delete(id);
+  try {
+    globalThis.localStorage?.removeItem(storageKey(id));
+  } catch {
+    // The in-memory copy is already removed.
   }
 }
