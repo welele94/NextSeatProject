@@ -7,9 +7,14 @@ export type PredictionMode = "live" | "offline-estimated" | "user-adjusted";
 export type RoutePatternSummary = {
   title: string;
   body: string;
-  typicalDurationLabel?: string;
-  typicalDescentLabel?: string;
+  scheduledDurationLabel?: string;
+  updatedDurationLabel?: string;
   reassurance: string;
+};
+
+export type AirportInfo = {
+  primary: string;
+  disclaimer: string;
 };
 
 export type OfflineGuidanceStatus = {
@@ -22,7 +27,6 @@ export type FlightDetailsSnapshot = {
   predictionMode: PredictionMode;
   phaseSource: "schedule" | "live" | "user-confirmed";
   lastLiveUpdateAt?: string;
-  routePatternSummary?: RoutePatternSummary;
   offlineGuidanceStatus: OfflineGuidanceStatus;
   shouldAskForConfirmation: boolean;
 };
@@ -32,30 +36,24 @@ export type FlightUiSnapshot = {
   predictionMode: PredictionMode;
   currentPhaseLabel: string;
   routeLabel: string;
-  reassuranceMessage: {
-    title: string;
-    body: string;
-  };
+  reassuranceMessage: { title: string; body: string };
   nextExpectedMoment: NextExpectedMoment;
-  routePatternSummary?: RoutePatternSummary;
+  routePatternSummary: RoutePatternSummary;
+  airportInfo?: AirportInfo;
+  baggageInfo?: AirportInfo;
+  isAfterFlight: boolean;
+  shouldShowEndJourney: boolean;
   offlineGuidanceStatus: OfflineGuidanceStatus;
   shouldAskForConfirmation: boolean;
   guidanceCopy: string;
 };
 
-const mockDetails: FlightDetailsSnapshot = {
+const defaultDetails: FlightDetailsSnapshot = {
   confidenceLevel: "high",
   predictionMode: "offline-estimated",
   phaseSource: "schedule",
   lastLiveUpdateAt: "Saved before departure",
   shouldAskForConfirmation: false,
-  routePatternSummary: {
-    title: "Recent route pattern",
-    body: "Recent flights on this route followed a normal timing pattern.",
-    typicalDurationLabel: "Around 1h05m",
-    typicalDescentLabel: "Usually 30-35 min before arrival",
-    reassurance: "Small timing differences are normal and expected."
-  },
   offlineGuidanceStatus: {
     isReady: true,
     items: [
@@ -67,28 +65,67 @@ const mockDetails: FlightDetailsSnapshot = {
   }
 };
 
-function getGuidanceCopy(details: FlightDetailsSnapshot): string {
-  if (details.predictionMode === "user-adjusted") {
-    return "Based on your latest confirmation, the guidance has been adjusted calmly.";
-  }
-
-  if (details.predictionMode === "offline-estimated") {
-    return "Based on the saved flight plan, your flight appears to be following the expected pattern.";
-  }
-
-  if (details.confidenceLevel === "low") {
-    return "The latest information is limited, so Next Seat is keeping the guidance gentle and general.";
-  }
-
-  return "Based on the latest available information, your flight appears to be following the expected pattern.";
+function formatDuration(minutes?: number): string | undefined {
+  if (!minutes || minutes <= 0) return undefined;
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  return hours > 0 ? `Around ${hours}h${String(remaining).padStart(2, "0")}m` : `Around ${remaining}m`;
 }
 
-function buildCompletedFlightUi(snapshot: FlightSnapshot): Pick<
-  FlightUiSnapshot,
-  "currentPhaseLabel" | "reassuranceMessage" | "nextExpectedMoment" | "guidanceCopy"
-> {
-  const destination = snapshot.flightSummary.destinationLabel;
+function buildSavedTiming(snapshot: FlightSnapshot): RoutePatternSummary {
+  return {
+    title: "Saved flight timing",
+    body: "These times come from the flight currently saved on your device.",
+    scheduledDurationLabel: formatDuration(snapshot.flightSummary.scheduledDurationMinutes),
+    updatedDurationLabel: formatDuration(snapshot.flightSummary.revisedDurationMinutes),
+    reassurance: "Small timing differences are normal and expected."
+  };
+}
 
+function buildGateInfo(snapshot: FlightSnapshot): AirportInfo | undefined {
+  if (snapshot.status !== "before_departure") return undefined;
+  const terminal = snapshot.flightSummary.departureTerminal;
+  const gate = snapshot.flightSummary.departureGate;
+  if (!terminal && !gate) return undefined;
+  return {
+    primary: [terminal ? `Terminal ${terminal}` : undefined, gate ? `Gate ${gate}` : undefined]
+      .filter(Boolean)
+      .join(" · "),
+    disclaimer: "Airport gates can change before boarding. Please confirm this on the airport screens."
+  };
+}
+
+function buildBaggageInfo(snapshot: FlightSnapshot): AirportInfo | undefined {
+  if (snapshot.status !== "completed") return undefined;
+  const belt = snapshot.flightSummary.baggageBelt;
+  return belt
+    ? {
+        primary: `Baggage belt ${belt}`,
+        disclaimer: "Baggage information can change after landing. Please confirm it on the airport screens."
+      }
+    : {
+        primary: "Baggage reclaim",
+        disclaimer:
+          "If you checked luggage, follow the airport signs for baggage reclaim. The arrival screens will show the correct belt."
+      };
+}
+
+function buildPreFlightMoment(snapshot: FlightSnapshot, gateInfo?: AirportInfo): NextExpectedMoment {
+  const gateCopy = gateInfo
+    ? ` Your saved ${gateInfo.primary.toLowerCase()}. Please confirm this on the airport screens, as gates can change.`
+    : "";
+  return {
+    title: "Boarding and cabin preparation",
+    body: "You may notice more movement around the gate as the flight gets ready.",
+    description:
+      `Boarding calls, crew checks, short announcements, small schedule updates, cabin preparation and normal sounds before departure can all be part of this stage.${gateCopy}`,
+    confidence: "high",
+    context: "schedule_based"
+  };
+}
+
+function buildCompletedFlightUi(snapshot: FlightSnapshot) {
+  const destination = snapshot.flightSummary.destinationLabel;
   return {
     currentPhaseLabel: "Arrived",
     reassuranceMessage: {
@@ -100,20 +137,31 @@ function buildCompletedFlightUi(snapshot: FlightSnapshot): Pick<
       body: "The aircraft is now completing its arrival at the gate.",
       description:
         "You may notice the seatbelt sign switching off, passengers collecting their belongings, and the doors opening once the aircraft is safely parked.",
-      confidence: "high",
-      context: "general_guidance"
+      confidence: "high" as const,
+      context: "general_guidance" as const
     },
     guidanceCopy:
       "Your flight has arrived. Next Seat will keep the final guidance simple while you prepare to leave the aircraft."
   };
 }
 
+function getGuidanceCopy(details: FlightDetailsSnapshot): string {
+  if (details.predictionMode === "user-adjusted") {
+    return "Based on your latest confirmation, the guidance has been adjusted calmly.";
+  }
+  if (details.confidenceLevel === "low") {
+    return "The latest information is limited, so Next Seat is keeping the guidance gentle and general.";
+  }
+  return "Based on the saved flight plan, your flight appears to be following the expected pattern.";
+}
+
 export function buildFlightUiSnapshot(
   snapshot: FlightSnapshot,
-  details: FlightDetailsSnapshot = mockDetails
+  details: FlightDetailsSnapshot = defaultDetails
 ): FlightUiSnapshot {
-  const completedUi =
-    snapshot.status === "completed" ? buildCompletedFlightUi(snapshot) : undefined;
+  const isAfterFlight = snapshot.status === "completed";
+  const completedUi = isAfterFlight ? buildCompletedFlightUi(snapshot) : undefined;
+  const airportInfo = buildGateInfo(snapshot);
 
   return {
     confidenceLevel: details.confidenceLevel,
@@ -121,8 +169,16 @@ export function buildFlightUiSnapshot(
     currentPhaseLabel: completedUi?.currentPhaseLabel ?? snapshot.phase.label,
     routeLabel: snapshot.flightSummary.routeLabel,
     reassuranceMessage: completedUi?.reassuranceMessage ?? snapshot.reassurance,
-    nextExpectedMoment: completedUi?.nextExpectedMoment ?? snapshot.expectedMoment,
-    routePatternSummary: details.routePatternSummary,
+    nextExpectedMoment:
+      completedUi?.nextExpectedMoment ??
+      (snapshot.status === "before_departure"
+        ? buildPreFlightMoment(snapshot, airportInfo)
+        : snapshot.expectedMoment),
+    routePatternSummary: buildSavedTiming(snapshot),
+    airportInfo,
+    baggageInfo: buildBaggageInfo(snapshot),
+    isAfterFlight,
+    shouldShowEndJourney: isAfterFlight,
     offlineGuidanceStatus: details.offlineGuidanceStatus,
     shouldAskForConfirmation: details.shouldAskForConfirmation,
     guidanceCopy: completedUi?.guidanceCopy ?? getGuidanceCopy(details)
