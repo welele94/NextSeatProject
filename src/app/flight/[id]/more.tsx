@@ -10,9 +10,8 @@ import {
   RoutePatternCard
 } from "@/components/flight/Sprint10Cards";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
+import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, spacing, typography } from "@/theme";
-
-import { useFlightSnapshot } from "./useFlightSnapshot";
 
 export default function MoreTab() {
   const { snapshot, endJourney } = useFlightSnapshot();
@@ -31,7 +30,7 @@ export default function MoreTab() {
 
         <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
 
-        <FlightDetailsCard routeLabel={ui.routeLabel} phaseLabel={ui.currentPhaseLabel} />
+        <FlightDetailsCard summary={snapshot.flightSummary} phaseLabel={ui.currentPhaseLabel} />
         <AirportInfoCard title="Departure information" info={ui.airportInfo} />
         <AirportInfoCard title="Baggage information" info={ui.baggageInfo} />
         <RoutePatternCard summary={ui.routePatternSummary} />
@@ -46,6 +45,9 @@ export default function MoreTab() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   content: {
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
     gap: spacing.lg,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing["3xl"],
