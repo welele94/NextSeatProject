@@ -1,19 +1,25 @@
 import { ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  AirportInfoCard,
   ConfirmationPrompt,
+  EndJourneyButton,
   GuidanceModeBadge,
   JourneyProgress,
   NextExpectedMomentCard,
   OfflineReadyCard,
   StatusHeroCard
 } from "@/components/flight/Sprint10Cards";
+import { removePreparedFlight } from "@/features/flightLookup/preparedFlightStorage";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { colors, radius, spacing } from "@/theme";
 
 import { useFlightSnapshot } from "./useFlightSnapshot";
+
+const AFTER_FLIGHT_WINDOW_MS = 90 * 60 * 1000;
 
 function SkyBackground() {
   return (
@@ -28,17 +34,35 @@ function SkyBackground() {
 export default function OverviewTab() {
   const { snapshot } = useFlightSnapshot();
 
+  useEffect(() => {
+    if (!snapshot || snapshot.status !== "completed") return;
+
+    const revisedArrival = snapshot.flightSummary.revisedArrival;
+    if (!revisedArrival) return;
+
+    const archiveAt = Date.parse(revisedArrival) + AFTER_FLIGHT_WINDOW_MS;
+    if (!Number.isNaN(archiveAt) && Date.now() >= archiveAt) {
+      void removePreparedFlight(snapshot.flightSummary.id).then(() => router.replace("/"));
+    }
+  }, [snapshot]);
+
   if (!snapshot) {
     return <SafeAreaView style={styles.safeArea} />;
   }
 
   const ui = buildFlightUiSnapshot(snapshot);
   const safeSnapshot = snapshot;
+
   function openNextMoment() {
     router.push({
       pathname: "/flight/[id]/next-moment" as never,
       params: { id: safeSnapshot.flightSummary.id } as never
     });
+  }
+
+  async function endJourney() {
+    await removePreparedFlight(safeSnapshot.flightSummary.id);
+    router.replace("/");
   }
 
   return (
@@ -61,6 +85,8 @@ export default function OverviewTab() {
           guidanceCopy={ui.guidanceCopy}
         />
 
+        <AirportInfoCard title="Departure information" info={ui.airportInfo} />
+
         <JourneyProgress
           routeLabel={ui.routeLabel}
           phaseLabel={ui.currentPhaseLabel}
@@ -72,9 +98,12 @@ export default function OverviewTab() {
           onPress={openNextMoment}
         />
 
+        <AirportInfoCard title="After landing" info={ui.baggageInfo} />
+
         <OfflineReadyCard status={ui.offlineGuidanceStatus} compact />
 
         {ui.shouldAskForConfirmation ? <ConfirmationPrompt /> : null}
+        {ui.shouldShowEndJourney ? <EndJourneyButton onPress={endJourney} /> : null}
       </ScrollView>
     </SafeAreaView>
   );
