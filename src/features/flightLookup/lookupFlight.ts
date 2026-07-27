@@ -6,6 +6,10 @@ import {
   FlightLookupResult
 } from "./types";
 
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 function createDefaultProvider(): FlightDataProvider {
   const rapidApiKey = process.env.RAPIDAPI_KEY;
 
