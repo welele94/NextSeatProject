@@ -30,6 +30,9 @@ export type ExternalFlightSeed = {
   scheduledArrivalUtc?: string;
   estimatedDepartureUtc?: string;
   estimatedArrivalUtc?: string;
+  departureTerminal?: string;
+  departureGate?: string;
+  baggageBelt?: string;
   status?: ExternalFlightStatus;
   durationMinutes?: number;
   provider: FlightLookupProviderId;
