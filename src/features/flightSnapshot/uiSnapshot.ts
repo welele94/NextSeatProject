@@ -75,7 +75,7 @@ function formatDuration(minutes?: number): string | undefined {
 function buildSavedTiming(snapshot: FlightSnapshot): RoutePatternSummary {
   return {
     title: "Saved flight timing",
-    body: "These times come from the flight currently saved on your device.",
+    body: "These times come from the flight currently saved on your device. This is not a historical route pattern.",
     scheduledDurationLabel: formatDuration(snapshot.flightSummary.scheduledDurationMinutes),
     updatedDurationLabel: formatDuration(snapshot.flightSummary.revisedDurationMinutes),
     reassurance: "Small timing differences are normal and expected."
@@ -112,20 +112,25 @@ function buildBaggageInfo(snapshot: FlightSnapshot): AirportInfo | undefined {
 
 function buildPreFlightMoment(snapshot: FlightSnapshot, gateInfo?: AirportInfo): NextExpectedMoment {
   const gateCopy = gateInfo
-    ? ` Your saved ${gateInfo.primary.toLowerCase()}. Please confirm this on the airport screens, as gates can change.`
+    ? `\n\nYour saved departure information is ${gateInfo.primary}. Please confirm this on the airport screens, as gates can change.`
     : "";
+
   return {
-    title: "Boarding and cabin preparation",
-    body: "You may notice more movement around the gate as the flight gets ready.",
+    title: "Boarding and departure preparation are next",
+    body: "Before the aircraft leaves, you may notice crew checks, boarding movement and small schedule updates. This is all part of the normal start of a flight.",
     description:
-      `Boarding calls, crew checks, short announcements, small schedule updates, cabin preparation and normal sounds before departure can all be part of this stage.${gateCopy}`,
+      `You may notice:\n• People moving around the gate\n• Boarding groups being called\n• Small timing changes\n• Cabin crew preparing the aircraft\n• Engine or cabin sounds before departure${gateCopy}`,
     confidence: "high",
     context: "schedule_based"
   };
 }
 
-function buildCompletedFlightUi(snapshot: FlightSnapshot) {
+function buildCompletedFlightUi(snapshot: FlightSnapshot, baggageInfo?: AirportInfo) {
   const destination = snapshot.flightSummary.destinationLabel;
+  const baggageCopy = baggageInfo
+    ? ` ${baggageInfo.primary}. ${baggageInfo.disclaimer}`
+    : " If you checked luggage, follow the airport signs for baggage reclaim.";
+
   return {
     currentPhaseLabel: "Arrived",
     reassuranceMessage: {
@@ -136,7 +141,7 @@ function buildCompletedFlightUi(snapshot: FlightSnapshot) {
       title: `Welcome to ${destination}`,
       body: "The aircraft is now completing its arrival at the gate.",
       description:
-        "You may notice the seatbelt sign switching off, passengers collecting their belongings, and the doors opening once the aircraft is safely parked.",
+        `You may notice the seatbelt sign switching off, passengers collecting their belongings, and the doors opening once the aircraft is safely parked.${baggageCopy}`,
       confidence: "high" as const,
       context: "general_guidance" as const
     },
@@ -160,8 +165,9 @@ export function buildFlightUiSnapshot(
   details: FlightDetailsSnapshot = defaultDetails
 ): FlightUiSnapshot {
   const isAfterFlight = snapshot.status === "completed";
-  const completedUi = isAfterFlight ? buildCompletedFlightUi(snapshot) : undefined;
   const airportInfo = buildGateInfo(snapshot);
+  const baggageInfo = buildBaggageInfo(snapshot);
+  const completedUi = isAfterFlight ? buildCompletedFlightUi(snapshot, baggageInfo) : undefined;
 
   return {
     confidenceLevel: details.confidenceLevel,
@@ -176,7 +182,7 @@ export function buildFlightUiSnapshot(
         : snapshot.expectedMoment),
     routePatternSummary: buildSavedTiming(snapshot),
     airportInfo,
-    baggageInfo: buildBaggageInfo(snapshot),
+    baggageInfo,
     isAfterFlight,
     shouldShowEndJourney: isAfterFlight,
     offlineGuidanceStatus: details.offlineGuidanceStatus,
