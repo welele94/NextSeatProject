@@ -13,9 +13,8 @@ import {
   StatusHeroCard
 } from "@/components/flight/Sprint10Cards";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
+import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing } from "@/theme";
-
-import { useFlightSnapshot } from "./useFlightSnapshot";
 
 function SkyBackground() {
   return (
@@ -79,6 +78,9 @@ export default function OverviewTab() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#EAF7FF" },
   content: {
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
     gap: spacing.lg,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
