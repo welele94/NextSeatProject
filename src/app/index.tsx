@@ -15,6 +15,8 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { mockFlights } from "@/data/mockFlights";
+import { createFlightFromExternalSeed } from "@/features/flightLookup/createFlightFromExternalSeed";
+import { savePreparedFlight } from "@/features/flightLookup/preparedFlightStorage";
 import { requestFlightLookup } from "@/features/flightLookup/requestFlightLookup";
 import {
   ExternalFlightSeed,
@@ -29,7 +31,9 @@ function normalizeFlightNumber(value: string): string {
 }
 
 function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 }
 
 function formatUtc(value?: string): string {
@@ -48,6 +52,7 @@ function failureMessage(reason: FlightLookupFailureReason): string {
     case "not_found":
       return "We couldn’t find this flight right now. You can still prepare your journey manually.";
     case "provider_unavailable":
+    case "provider_not_configured":
     case "rate_limited":
       return "We couldn’t check this flight right now. You can still add it manually and Next Seat will prepare offline guidance.";
     case "invalid_flight_number":
@@ -94,15 +99,21 @@ export default function HomeScreen() {
     setIsLoading(false);
   }
 
-  function handleConfirm() {
-    const matchedFlight = mockFlights.find(
-      (flight) =>
-        normalizeFlightNumber(flight.flightNumber) === normalizedFlightNumber
-    ) ?? mockFlights[0];
+  async function handleConfirm() {
+    if (lookupResult) {
+      const preparedFlight = createFlightFromExternalSeed(lookupResult);
+      await savePreparedFlight(preparedFlight);
+
+      router.push({
+        pathname: "/flight/[id]/overview",
+        params: { id: preparedFlight.id }
+      });
+      return;
+    }
 
     router.push({
       pathname: "/flight/[id]/overview",
-      params: { id: matchedFlight.id }
+      params: { id: mockFlights[0].id }
     });
   }
 
