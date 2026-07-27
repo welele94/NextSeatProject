@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radius, spacing, typography } from "@/theme";
+import type { FlightSummary } from "@/features/flightSnapshot/types";
 import type {
   AirportInfo,
   ConfidenceLevel,
@@ -146,12 +147,29 @@ export function RoutePatternCard({ summary }: { summary?: RoutePatternSummary })
   );
 }
 
-export function FlightDetailsCard({ routeLabel, phaseLabel }: { routeLabel: string; phaseLabel: string }) {
+function normalizeProviderStatus(value?: string): string | undefined {
+  if (!value) return undefined;
+  return value.replace(/_/g, " ").replace(/^\w/, (first) => first.toUpperCase());
+}
+
+export function FlightDetailsCard({ summary, phaseLabel }: {
+  summary: FlightSummary;
+  phaseLabel: string;
+}) {
+  const providerStatus = normalizeProviderStatus(summary.providerStatus);
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Current flight</Text>
-      <Text style={styles.detailLine}>{routeLabel}</Text>
-      <Text style={styles.detailLine}>Current stage: {phaseLabel}</Text>
+      <Text style={styles.detailLine}>{summary.routeLabel}</Text>
+      <Text style={styles.cardBody}>{summary.airline} · {summary.flightNumber}</Text>
+      <View style={styles.detailsGrid}>
+        <Text style={styles.detailLine}>Current stage: {phaseLabel}</Text>
+        {providerStatus ? <Text style={styles.detailLine}>Saved status: {providerStatus}</Text> : null}
+        <Text style={styles.detailLine}>Departure: {summary.revisedDepartureLabel ?? summary.scheduledDepartureLabel}</Text>
+        <Text style={styles.detailLine}>Arrival: {summary.revisedArrivalLabel ?? summary.scheduledArrivalLabel}</Text>
+        {summary.aircraftLabel ? <Text style={styles.detailLine}>Aircraft: {summary.aircraftLabel}</Text> : null}
+      </View>
+      <Text style={styles.cardBody}>{summary.timeDisplayNote}</Text>
     </View>
   );
 }
@@ -194,6 +212,7 @@ const styles = StyleSheet.create({
   cardLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
   cardTitle: { ...typography.section, color: colors.textPrimary },
   cardBody: { ...typography.body, color: colors.textSecondary },
+  detailsGrid: { gap: spacing.xs },
   detailLine: { ...typography.body, color: colors.textPrimary },
   progressTrack: { height: 8, borderRadius: radius.pill, backgroundColor: "#DCEAF7", overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: radius.pill, backgroundColor: colors.primaryBlue },
