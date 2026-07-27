@@ -4,6 +4,14 @@ import type { NextExpectedMoment } from "@/types/nextExpectedMoment";
 export type ConfidenceLevel = "high" | "medium" | "low";
 export type PredictionMode = "live" | "offline-estimated" | "user-adjusted";
 
+export type PhaseTheme = {
+  pageBackground: string;
+  accent: string;
+  accentSoft: string;
+  accentSurface: string;
+  accentBorder: string;
+};
+
 export type RoutePatternSummary = {
   title: string;
   body: string;
@@ -46,6 +54,7 @@ export type FlightUiSnapshot = {
   offlineGuidanceStatus: OfflineGuidanceStatus;
   shouldAskForConfirmation: boolean;
   guidanceCopy: string;
+  phaseTheme: PhaseTheme;
 };
 
 const defaultDetails: FlightDetailsSnapshot = {
@@ -64,6 +73,53 @@ const defaultDetails: FlightDetailsSnapshot = {
     ]
   }
 };
+
+function resolvePhaseTheme(snapshot: FlightSnapshot): PhaseTheme {
+  switch (snapshot.status) {
+    case "before_departure":
+      return {
+        pageBackground: "#EEF6FF",
+        accent: "#0D3B8C",
+        accentSoft: "#DDEBFF",
+        accentSurface: "#F7FAFF",
+        accentBorder: "rgba(13, 59, 140, 0.16)"
+      };
+    case "early_flight":
+      return {
+        pageBackground: "#FFF7EC",
+        accent: "#A86112",
+        accentSoft: "#FFE7C2",
+        accentSurface: "#FFFBF5",
+        accentBorder: "rgba(168, 97, 18, 0.18)"
+      };
+    case "cruise":
+      return {
+        pageBackground: "#EAF5FF",
+        accent: "#176B9E",
+        accentSoft: "#D8EEFC",
+        accentSurface: "#F5FBFF",
+        accentBorder: "rgba(23, 107, 158, 0.16)"
+      };
+    case "late_flight":
+    case "arrival_window":
+      return {
+        pageBackground: "#F3ECFF",
+        accent: "#7150A8",
+        accentSoft: "#E6D8FA",
+        accentSurface: "#FAF7FF",
+        accentBorder: "rgba(113, 80, 168, 0.17)"
+      };
+    case "completed":
+    default:
+      return {
+        pageBackground: "#EAF8F1",
+        accent: "#2F8066",
+        accentSoft: "#CFEFDF",
+        accentSurface: "#F5FCF8",
+        accentBorder: "rgba(47, 128, 102, 0.18)"
+      };
+  }
+}
 
 function formatDuration(minutes?: number): string | undefined {
   if (!minutes || minutes <= 0) return undefined;
@@ -187,6 +243,7 @@ export function buildFlightUiSnapshot(
     shouldShowEndJourney: isAfterFlight,
     offlineGuidanceStatus: details.offlineGuidanceStatus,
     shouldAskForConfirmation: details.shouldAskForConfirmation,
-    guidanceCopy: completedUi?.guidanceCopy ?? getGuidanceCopy(details)
+    guidanceCopy: completedUi?.guidanceCopy ?? getGuidanceCopy(details),
+    phaseTheme: resolvePhaseTheme(snapshot)
   };
 }
