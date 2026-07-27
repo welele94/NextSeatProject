@@ -36,15 +36,30 @@ function todayIsoDate(): string {
   return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 }
 
-function formatUtc(value?: string): string {
+function formatPhoneTime(value?: string): string {
   if (!value) {
     return "Time not available";
   }
 
   return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
+    hour: "2-digit",
+    minute: "2-digit"
   }).format(new Date(value));
+}
+
+function airportRouteLabel(result: ExternalFlightSeed): string {
+  const origin = result.departureCity ?? result.departureAirportCode ?? result.departureAirport;
+  const destination = result.arrivalCity ?? result.arrivalAirportCode ?? result.arrivalAirport;
+  return `${origin} → ${destination}`;
+}
+
+function departureInfo(result: ExternalFlightSeed): string | undefined {
+  const parts = [
+    result.departureTerminal ? `Terminal ${result.departureTerminal}` : undefined,
+    result.departureGate ? `Gate ${result.departureGate}` : undefined
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 function failureMessage(reason: FlightLookupFailureReason): string {
@@ -75,6 +90,7 @@ export default function HomeScreen() {
   );
 
   const hasFlightNumber = normalizedFlightNumber.length >= 3;
+  const foundDepartureInfo = lookupResult ? departureInfo(lookupResult) : undefined;
 
   async function handleLookup() {
     if (!hasFlightNumber || isLoading) {
@@ -137,15 +153,15 @@ export default function HomeScreen() {
 
             <View style={styles.card}>
               <View style={styles.header}>
-                <Text style={styles.title}>Vamos começar!</Text>
+                <Text style={styles.title}>Let’s get started</Text>
                 <Text style={styles.subtitle}>
-                  Insira o número e a data do seu voo. Vamos procurar apenas os detalhes necessários para preparar a viagem.
+                  Enter your flight number and date. Next Seat will only look for the details needed to prepare your journey.
                 </Text>
               </View>
 
               <View style={styles.form}>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Número do voo</Text>
+                  <Text style={styles.label}>Flight number</Text>
                   <TextInput
                     value={flightNumber}
                     onChangeText={(value) => {
@@ -163,7 +179,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Data do voo</Text>
+                  <Text style={styles.label}>Flight date</Text>
                   <TextInput
                     value={date}
                     onChangeText={(value) => {
@@ -171,7 +187,7 @@ export default function HomeScreen() {
                       setLookupResult(null);
                       setErrorMessage(null);
                     }}
-                    placeholder="AAAA-MM-DD"
+                    placeholder="YYYY-MM-DD"
                     placeholderTextColor={colors.textSecondary}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -194,7 +210,7 @@ export default function HomeScreen() {
                   {isLoading ? (
                     <ActivityIndicator color={colors.white} />
                   ) : (
-                    <Text style={styles.primaryButtonText}>Procurar voo</Text>
+                    <Text style={styles.primaryButtonText}>Find flight</Text>
                   )}
                 </Pressable>
               </View>
@@ -202,25 +218,27 @@ export default function HomeScreen() {
               {lookupResult ? (
                 <View style={styles.resultCard}>
                   <Text style={styles.resultEyebrow}>Flight found</Text>
-                  <Text style={styles.resultTitle}>
-                    {lookupResult.departureAirportCode ?? lookupResult.departureAirport}
-                    {"  →  "}
-                    {lookupResult.arrivalAirportCode ?? lookupResult.arrivalAirport}
-                  </Text>
+                  <Text style={styles.resultTitle}>{airportRouteLabel(lookupResult)}</Text>
                   <Text style={styles.resultBody}>
                     {lookupResult.airlineName ?? lookupResult.airlineCode ?? "Airline"} · {lookupResult.flightNumber}
                   </Text>
                   <Text style={styles.resultBody}>
-                    Departure: {formatUtc(lookupResult.estimatedDepartureUtc ?? lookupResult.scheduledDepartureUtc)}
+                    Departure: {formatPhoneTime(lookupResult.estimatedDepartureUtc ?? lookupResult.scheduledDepartureUtc)} · phone time
                   </Text>
                   <Text style={styles.resultBody}>
-                    Arrival: {formatUtc(lookupResult.estimatedArrivalUtc ?? lookupResult.scheduledArrivalUtc)}
+                    Arrival: {formatPhoneTime(lookupResult.estimatedArrivalUtc ?? lookupResult.scheduledArrivalUtc)} · phone time
                   </Text>
+                  {foundDepartureInfo ? (
+                    <View style={styles.infoBox}>
+                      <Text style={styles.infoTitle}>{foundDepartureInfo}</Text>
+                      <Text style={styles.infoBody}>Airport gates can change before boarding. Please confirm this on the airport screens.</Text>
+                    </View>
+                  ) : null}
                   <Text style={styles.resultHint}>
                     Next Seat will save these details locally and prepare calm offline guidance.
                   </Text>
                   <Pressable onPress={handleConfirm} style={styles.confirmButton}>
-                    <Text style={styles.primaryButtonText}>Confirmar este voo</Text>
+                    <Text style={styles.primaryButtonText}>Confirm this flight</Text>
                   </Pressable>
                   <Text style={styles.providerText}>
                     Source: {lookupResult.provider}
@@ -232,13 +250,13 @@ export default function HomeScreen() {
                 <View style={styles.messageCard}>
                   <Text style={styles.messageText}>{errorMessage}</Text>
                   <Pressable onPress={handleConfirm} style={styles.manualButton}>
-                    <Text style={styles.manualButtonText}>Continuar manualmente</Text>
+                    <Text style={styles.manualButtonText}>Continue manually</Text>
                   </Pressable>
                 </View>
               ) : null}
 
               <Text style={styles.footerText}>
-                Os dados ficam guardados apenas no seu dispositivo.
+                Flight guidance is saved only on this device.
               </Text>
             </View>
           </View>
@@ -354,6 +372,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.sm
   },
+  infoBox: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: "#EEF9F3"
+  },
+  infoTitle: { ...typography.body, color: colors.textPrimary, fontWeight: "700" },
+  infoBody: { ...typography.caption, color: colors.textSecondary },
   confirmButton: {
     minHeight: 50,
     alignItems: "center",
