@@ -148,7 +148,7 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
   constructor({ apiKey, fetchImpl = fetch }: AeroDataBoxFlightProviderOptions) {
     this.apiKey = apiKey;
-    this.fetchImpl = fetchImpl;
+    this.fetchImpl = fetchImpl.bind(globalThis);
   }
 
   async lookupFlight(input: FlightLookupInput): Promise<FlightLookupResult> {
