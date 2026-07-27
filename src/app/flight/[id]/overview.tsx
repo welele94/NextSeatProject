@@ -16,12 +16,12 @@ import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing } from "@/theme";
 
-function SkyBackground() {
+function SkyBackground({ accent, soft }: { accent: string; soft: string }) {
   return (
     <>
-      <View pointerEvents="none" style={styles.cloudTop} />
-      <View pointerEvents="none" style={styles.cloudRight} />
-      <View pointerEvents="none" style={styles.cloudBottom} />
+      <View pointerEvents="none" style={[styles.cloudTop, { backgroundColor: soft }]} />
+      <View pointerEvents="none" style={[styles.cloudRight, { backgroundColor: accent }]} />
+      <View pointerEvents="none" style={[styles.cloudBottom, { backgroundColor: soft }]} />
     </>
   );
 }
@@ -42,29 +42,41 @@ export default function OverviewTab() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <SkyBackground />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: ui.phaseTheme.pageBackground }]}>
+      <SkyBackground accent={ui.phaseTheme.accent} soft={ui.phaseTheme.accentSoft} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={[styles.accentBar, { backgroundColor: ui.phaseTheme.accent }]} />
+
         <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
 
-        <StatusHeroCard
-          title={ui.reassuranceMessage.title}
-          body={ui.reassuranceMessage.body}
-          phaseLabel={ui.currentPhaseLabel}
-          guidanceCopy={ui.guidanceCopy}
-        />
+        <View style={[styles.heroSurface, { backgroundColor: ui.phaseTheme.accentSurface, borderColor: ui.phaseTheme.accentBorder }]}>
+          <StatusHeroCard
+            title={ui.reassuranceMessage.title}
+            body={ui.reassuranceMessage.body}
+            phaseLabel={ui.currentPhaseLabel}
+            guidanceCopy={ui.guidanceCopy}
+          />
+        </View>
 
-        <AirportInfoCard title="Departure information" info={ui.airportInfo} />
+        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
+          <AirportInfoCard title="Departure information" info={ui.airportInfo} />
+        </View>
 
-        <JourneyProgress
-          routeLabel={ui.routeLabel}
-          phaseLabel={ui.currentPhaseLabel}
-          progressPercent={snapshot.progress.progressPercent}
-        />
+        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
+          <JourneyProgress
+            routeLabel={ui.routeLabel}
+            phaseLabel={ui.currentPhaseLabel}
+            progressPercent={snapshot.progress.progressPercent}
+          />
+        </View>
 
-        <NextExpectedMomentCard moment={ui.nextExpectedMoment} onPress={openNextMoment} />
+        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
+          <NextExpectedMomentCard moment={ui.nextExpectedMoment} onPress={openNextMoment} />
+        </View>
 
-        <AirportInfoCard title="After landing" info={ui.baggageInfo} />
+        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
+          <AirportInfoCard title="After landing" info={ui.baggageInfo} />
+        </View>
 
         <OfflineReadyCard status={ui.offlineGuidanceStatus} compact />
 
@@ -86,6 +98,23 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: 132
   },
+  accentBar: {
+    width: 52,
+    height: 5,
+    borderRadius: radius.pill,
+    alignSelf: "center",
+    opacity: 0.85
+  },
+  heroSurface: {
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    overflow: "hidden"
+  },
+  cardAccent: {
+    borderLeftWidth: 4,
+    borderRadius: radius.xl
+  },
   cloudTop: {
     position: "absolute",
     top: -120,
@@ -93,8 +122,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
-    opacity: 0.72
+    opacity: 0.7
   },
   cloudRight: {
     position: "absolute",
@@ -103,8 +131,7 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
-    opacity: 0.48
+    opacity: 0.08
   },
   cloudBottom: {
     position: "absolute",
@@ -113,7 +140,6 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: radius.pill,
-    backgroundColor: "#DDF0FF",
-    opacity: 0.62
+    opacity: 0.58
   }
 });
