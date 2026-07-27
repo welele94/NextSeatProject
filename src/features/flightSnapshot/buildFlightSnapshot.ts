@@ -1,6 +1,5 @@
 import { Flight, FlightProgress } from "@/types/flight";
 import { JourneyInformation, JourneyPhase } from "@/types/journey";
-import { RouteCheckpoint } from "@/types/route";
 
 import { calculateFlightProgress } from "@/features/flightCore/calculateFlightProgress";
 import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTime";
@@ -20,18 +19,13 @@ import { FlightSnapshot } from "./types";
 const emptyEnvironmentContext: EnvironmentContext = {};
 
 function estimateDelayMinutes(progress: FlightProgress): number | undefined {
-  if (progress.isBeforeDeparture || progress.isAfterArrival) {
-    return undefined;
-  }
-
+  if (progress.isBeforeDeparture || progress.isAfterArrival) return undefined;
   const scheduleRemainingMinutes = progress.remainingMinutes;
   const progressBasedRemainingMinutes = Math.max(
     Math.round(progress.elapsedMinutes * (1 - progress.progressPercent / 100)),
     0
   );
-
   const delay = progressBasedRemainingMinutes - scheduleRemainingMinutes;
-
   return delay > 0 ? delay : undefined;
 }
 
@@ -91,20 +85,17 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
     default:
       return {
         id: "arrival",
-        label: "Arrival",
-        description: "The scheduled journey has reached its destination window.",
+        label: "Arrived",
+        description: "The journey has reached its destination.",
         expectedProgressRange: { startPercent: 100, endPercent: 100 },
         intensity: "low",
-        passengerMeaning: "The planned flight flow is complete.",
+        passengerMeaning: "The flight is complete and the final airport steps can begin.",
         typicalSensations: []
       };
   }
 }
 
-function buildJourneyInformation(
-  flight: Flight,
-  progress: FlightProgress
-): JourneyInformation {
+function buildJourneyInformation(flight: Flight, progress: FlightProgress): JourneyInformation {
   return {
     originLabel: flight.origin.city,
     destinationLabel: flight.destination.city,
@@ -116,37 +107,34 @@ function buildJourneyInformation(
   };
 }
 
-export function buildFlightSnapshot(
-  flight: Flight,
-  currentTime: Date
-): FlightSnapshot {
-  const rawProgress = calculateFlightProgress(flight, currentTime);
-  const remainingMinutes = estimateRemainingTime(
-    flight,
-    rawProgress.progressPercent
-  );
+function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgress): FlightStatus {
+  const providerLanded = flight.operations?.providerStatus === "landed";
+  const revisedArrivalMs = flight.schedule.revisedArrival
+    ? Date.parse(flight.schedule.revisedArrival)
+    : Number.NaN;
+  const revisedArrivalPassed = !Number.isNaN(revisedArrivalMs) && currentTime.getTime() >= revisedArrivalMs;
 
-  const progress: FlightProgress = {
-    ...rawProgress,
-    remainingMinutes
-  };
+  if (providerLanded || revisedArrivalPassed) return "completed";
 
-  const currentCheckpoint = getCurrentCheckpoint(
-    flight.checkpoints,
-    progress.progressPercent
-  );
-
-  const nextCheckpoint = getNextCheckpoint(
-    flight.checkpoints,
-    progress.progressPercent
-  );
-
-  const status = getFlightStatus(
+  return getFlightStatus(
     progress.progressPercent,
     progress.isBeforeDeparture,
     progress.isAfterArrival
   );
+}
 
+export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSnapshot {
+  const rawProgress = calculateFlightProgress(flight, currentTime);
+  const status = resolveStatus(flight, currentTime, rawProgress);
+  const remainingMinutes = status === "completed"
+    ? 0
+    : estimateRemainingTime(flight, rawProgress.progressPercent);
+  const progress: FlightProgress = status === "completed"
+    ? { ...rawProgress, progressPercent: 100, remainingMinutes: 0, isAfterArrival: true }
+    : { ...rawProgress, remainingMinutes };
+
+  const currentCheckpoint = getCurrentCheckpoint(flight.checkpoints, progress.progressPercent);
+  const nextCheckpoint = getNextCheckpoint(flight.checkpoints, progress.progressPercent);
   const phase = resolveJourneyPhase(status);
   const journey = buildJourneyInformation(flight, progress);
   const delayedMinutes = estimateDelayMinutes(progress);
@@ -165,16 +153,8 @@ export function buildFlightSnapshot(
     progressPercent: progress.progressPercent
   });
 
-  const guidance = resolveGuidanceState({
-    progress,
-    status
-  });
-
-  const reassurance = getSituationMessage({
-    situation,
-    currentCheckpoint
-  });
-
+  const guidance = resolveGuidanceState({ progress, status });
+  const reassurance = getSituationMessage({ situation, currentCheckpoint });
   const expectedMoment = getNextExpectedMoment({
     situation,
     nextCheckpoint,
