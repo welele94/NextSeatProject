@@ -4,11 +4,17 @@ import { FlightSummary } from "./types";
 
 function formatScheduledTime(timestamp: string): string {
   const date = new Date(timestamp);
-
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-
   return `${hours}:${minutes}`;
+}
+
+function durationBetween(start?: string, end?: string): number | undefined {
+  if (!start || !end) return undefined;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) return undefined;
+  return Math.round((endMs - startMs) / 60000);
 }
 
 export function buildFlightSummary(flight: Flight): FlightSummary {
@@ -17,15 +23,24 @@ export function buildFlightSummary(flight: Flight): FlightSummary {
     flightNumber: flight.flightNumber,
     airline: flight.airline,
     aircraftLabel: flight.aircraftType,
-
     originLabel: flight.origin.city,
     destinationLabel: flight.destination.city,
     originCode: flight.origin.code,
     destinationCode: flight.destination.code,
-
     routeLabel: `${flight.origin.city} → ${flight.destination.city}`,
-
     scheduledDepartureLabel: formatScheduledTime(flight.schedule.scheduledDeparture),
-    scheduledArrivalLabel: formatScheduledTime(flight.schedule.scheduledArrival)
+    scheduledArrivalLabel: formatScheduledTime(flight.schedule.scheduledArrival),
+    scheduledDurationMinutes:
+      durationBetween(flight.schedule.scheduledDeparture, flight.schedule.scheduledArrival) ??
+      flight.schedule.estimatedDurationMinutes,
+    revisedDurationMinutes: durationBetween(
+      flight.schedule.revisedDeparture ?? flight.schedule.scheduledDeparture,
+      flight.schedule.revisedArrival
+    ),
+    revisedArrival: flight.schedule.revisedArrival,
+    providerStatus: flight.operations?.providerStatus,
+    departureTerminal: flight.operations?.departureTerminal,
+    departureGate: flight.operations?.departureGate,
+    baggageBelt: flight.operations?.baggageBelt
   };
 }
