@@ -11,7 +11,23 @@ export type Airport = {
 export type FlightSchedule = {
   scheduledDeparture: string;
   scheduledArrival: string;
+  revisedDeparture?: string;
+  revisedArrival?: string;
   estimatedDurationMinutes: number;
+};
+
+export type FlightOperations = {
+  providerStatus?:
+    | "scheduled"
+    | "boarding"
+    | "en_route"
+    | "landed"
+    | "delayed"
+    | "cancelled"
+    | "unknown";
+  departureTerminal?: string;
+  departureGate?: string;
+  baggageBelt?: string;
 };
 
 export type Flight = {
@@ -22,6 +38,7 @@ export type Flight = {
   origin: Airport;
   destination: Airport;
   schedule: FlightSchedule;
+  operations?: FlightOperations;
   routeDistanceKm: number;
   routeCoordinates: RoutePoint[];
   checkpoints: RouteCheckpoint[];
