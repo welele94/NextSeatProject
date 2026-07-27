@@ -22,6 +22,9 @@ export type FlightSummary = {
   routeLabel: string;
   scheduledDepartureLabel: string;
   scheduledArrivalLabel: string;
+  revisedDepartureLabel?: string;
+  revisedArrivalLabel?: string;
+  timeDisplayNote: string;
   scheduledDurationMinutes: number;
   revisedDurationMinutes?: number;
   revisedArrival?: string;
