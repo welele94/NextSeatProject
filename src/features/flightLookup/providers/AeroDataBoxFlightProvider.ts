@@ -138,6 +138,10 @@ function chooseFlight(
   return exact ?? flights[0];
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export class AeroDataBoxFlightProvider implements FlightDataProvider {
   private readonly apiKey: string;
   private readonly fetchImpl: typeof fetch;
@@ -171,7 +175,7 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
     let response: Response;
 
     try {
-      response = await this.fetchImpl(url, {
+      response = await this.fetchImpl(url.toString(), {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -179,7 +183,12 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           "X-RapidAPI-Host": RAPID_API_HOST
         }
       });
-    } catch {
+    } catch (error) {
+      console.error("AeroDataBox fetch failed", {
+        flightNumber,
+        date,
+        message: errorMessage(error)
+      });
       return { ok: false, reason: "provider_unavailable" };
     }
 
@@ -188,10 +197,27 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
     }
 
     if (response.status === 429) {
+      console.error("AeroDataBox rate limited the request", { flightNumber, date });
       return { ok: false, reason: "rate_limited" };
     }
 
     if (!response.ok) {
+      let responseBody = "";
+
+      try {
+        responseBody = (await response.text()).slice(0, 500);
+      } catch {
+        responseBody = "<unable to read response body>";
+      }
+
+      console.error("AeroDataBox returned a non-success response", {
+        flightNumber,
+        date,
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody
+      });
+
       return { ok: false, reason: "provider_unavailable" };
     }
 
@@ -199,10 +225,12 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
     try {
       payload = await response.json();
-      console.log("========== AERODATABOX RESPONSE ==========");
-      console.log(JSON.stringify(payload, null, 2));
-      console.log("==========================================");
-    } catch {
+    } catch (error) {
+      console.error("AeroDataBox returned invalid JSON", {
+        flightNumber,
+        date,
+        message: errorMessage(error)
+      });
       return { ok: false, reason: "provider_unavailable" };
     }
 
