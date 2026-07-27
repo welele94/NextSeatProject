@@ -83,20 +83,48 @@ function getGuidanceCopy(details: FlightDetailsSnapshot): string {
   return "Based on the latest available information, your flight appears to be following the expected pattern.";
 }
 
+function buildCompletedFlightUi(snapshot: FlightSnapshot): Pick<
+  FlightUiSnapshot,
+  "currentPhaseLabel" | "reassuranceMessage" | "nextExpectedMoment" | "guidanceCopy"
+> {
+  const destination = snapshot.flightSummary.destinationLabel;
+
+  return {
+    currentPhaseLabel: "Arrived",
+    reassuranceMessage: {
+      title: "You've arrived",
+      body: `Your flight has landed in ${destination}. The journey is complete.`
+    },
+    nextExpectedMoment: {
+      title: `Welcome to ${destination}`,
+      body: "The aircraft is now completing its arrival at the gate.",
+      description:
+        "You may notice the seatbelt sign switching off, passengers collecting their belongings, and the doors opening once the aircraft is safely parked.",
+      confidence: "high",
+      context: "general_guidance"
+    },
+    guidanceCopy:
+      "Your flight has arrived. Next Seat will keep the final guidance simple while you prepare to leave the aircraft."
+  };
+}
+
 export function buildFlightUiSnapshot(
   snapshot: FlightSnapshot,
   details: FlightDetailsSnapshot = mockDetails
 ): FlightUiSnapshot {
+  const completedUi =
+    snapshot.status === "completed" ? buildCompletedFlightUi(snapshot) : undefined;
+
   return {
     confidenceLevel: details.confidenceLevel,
     predictionMode: details.predictionMode,
-    currentPhaseLabel: snapshot.phase.label,
+    currentPhaseLabel: completedUi?.currentPhaseLabel ?? snapshot.phase.label,
     routeLabel: snapshot.flightSummary.routeLabel,
-    reassuranceMessage: snapshot.reassurance,
-    nextExpectedMoment: snapshot.expectedMoment,
+    reassuranceMessage: completedUi?.reassuranceMessage ?? snapshot.reassurance,
+    nextExpectedMoment: completedUi?.nextExpectedMoment ?? snapshot.expectedMoment,
     routePatternSummary: details.routePatternSummary,
     offlineGuidanceStatus: details.offlineGuidanceStatus,
     shouldAskForConfirmation: details.shouldAskForConfirmation,
-    guidanceCopy: getGuidanceCopy(details)
+    guidanceCopy: completedUi?.guidanceCopy ?? getGuidanceCopy(details)
   };
 }
