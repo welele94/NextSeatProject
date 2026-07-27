@@ -6,6 +6,11 @@ import {
   FlightLookupResult
 } from "../types";
 
+type AeroDataBoxTime = {
+  utc?: string;
+  local?: string;
+};
+
 type AeroDataBoxMovement = {
   airport?: {
     iata?: string;
@@ -13,10 +18,10 @@ type AeroDataBoxMovement = {
     shortName?: string;
     municipalityName?: string;
   };
-  scheduledTimeUtc?: string;
-  revisedTimeUtc?: string;
-  predictedTimeUtc?: string;
-  actualTimeUtc?: string;
+  scheduledTime?: AeroDataBoxTime;
+  revisedTime?: AeroDataBoxTime;
+  predictedTime?: AeroDataBoxTime;
+  actualTime?: AeroDataBoxTime;
 };
 
 type AeroDataBoxFlight = {
@@ -63,6 +68,7 @@ function mapStatus(status?: string): ExternalFlightStatus {
     case "gate closed":
       return "boarding";
     case "en route":
+    case "enroute":
     case "departed":
       return "en_route";
     case "arrived":
@@ -86,8 +92,21 @@ function preferredAirportName(movement?: AeroDataBoxMovement): string | undefine
   );
 }
 
+function normalizeAeroDataBoxUtc(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  return Number.isNaN(Date.parse(normalized)) ? undefined : new Date(normalized).toISOString();
+}
+
 function preferredEstimate(movement?: AeroDataBoxMovement): string | undefined {
-  return movement?.predictedTimeUtc ?? movement?.revisedTimeUtc ?? movement?.actualTimeUtc;
+  return normalizeAeroDataBoxUtc(
+    movement?.predictedTime?.utc ??
+      movement?.revisedTime?.utc ??
+      movement?.actualTime?.utc
+  );
 }
 
 function calculateDurationMinutes(
@@ -196,15 +215,20 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
       return { ok: false, reason: "not_found" };
     }
 
-    const scheduledDepartureUtc = flight.departure?.scheduledTimeUtc;
-    const scheduledArrivalUtc = flight.arrival?.scheduledTimeUtc;
+    const scheduledDepartureUtc = normalizeAeroDataBoxUtc(
+      flight.departure?.scheduledTime?.utc
+    );
+    const scheduledArrivalUtc = normalizeAeroDataBoxUtc(
+      flight.arrival?.scheduledTime?.utc
+    );
 
     return {
       ok: true,
       data: normalizeExternalFlightResponse(
         {
           flightNumber: flight.number ?? flightNumber,
-          airlineCode: flight.airline?.iata ?? flightNumber.match(/^[A-Z0-9]{2,3}/)?.[0],
+          airlineCode:
+            flight.airline?.iata ?? flightNumber.match(/^[A-Z0-9]{2,3}/)?.[0],
           airlineName: flight.airline?.name,
           departureAirport,
           departureAirportCode: flight.departure?.airport?.iata,
