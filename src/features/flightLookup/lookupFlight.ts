@@ -1,5 +1,4 @@
 import { AeroDataBoxFlightProvider } from "./providers/AeroDataBoxFlightProvider";
-import { MockFlightDataProvider } from "./providers/MockFlightDataProvider";
 import {
   FlightDataProvider,
   FlightLookupInput,
@@ -10,14 +9,14 @@ declare const process: {
   env: Record<string, string | undefined>;
 };
 
-function createDefaultProvider(): FlightDataProvider {
-  const rapidApiKey = process.env.RAPIDAPI_KEY;
+function createDefaultProvider(): FlightDataProvider | null {
+  const rapidApiKey = process.env.RAPIDAPI_KEY?.trim();
 
-  if (rapidApiKey) {
-    return new AeroDataBoxFlightProvider({ apiKey: rapidApiKey });
+  if (!rapidApiKey) {
+    return null;
   }
 
-  return new MockFlightDataProvider();
+  return new AeroDataBoxFlightProvider({ apiKey: rapidApiKey });
 }
 
 /**
@@ -26,8 +25,15 @@ function createDefaultProvider(): FlightDataProvider {
  */
 export async function lookupFlight(
   input: FlightLookupInput,
-  provider: FlightDataProvider = createDefaultProvider()
+  provider: FlightDataProvider | null = createDefaultProvider()
 ): Promise<FlightLookupResult> {
+  if (!provider) {
+    return {
+      ok: false,
+      reason: "provider_not_configured"
+    };
+  }
+
   try {
     return await provider.lookupFlight(input);
   } catch {
