@@ -32,14 +32,15 @@ export function GuidanceModeBadge({ confidenceLevel, predictionMode }: {
   );
 }
 
-export function StatusHeroCard({ title, body, phaseLabel, guidanceCopy }: {
+export function StatusHeroCard({ title, body, phaseLabel, guidanceCopy, onPress }: {
   title: string;
   body: string;
   phaseLabel: string;
   guidanceCopy: string;
+  onPress?: () => void;
 }) {
-  return (
-    <View style={styles.hero}>
+  const content = (
+    <>
       <View style={styles.iconCircle}>
         <Ionicons name="happy-outline" size={34} color={colors.primaryBlue} />
       </View>
@@ -47,7 +48,22 @@ export function StatusHeroCard({ title, body, phaseLabel, guidanceCopy }: {
       <Text style={styles.heroBody}>{body}</Text>
       <View style={styles.phasePill}><Text style={styles.phasePillText}>{phaseLabel}</Text></View>
       <Text style={styles.guidanceCopy}>{guidanceCopy}</Text>
-    </View>
+      {onPress ? <Text style={styles.tapHint}>Tap to see what is happening now</Text> : null}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.hero}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.hero, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -204,6 +220,7 @@ const styles = StyleSheet.create({
   heroTitle: { ...typography.title, color: colors.textPrimary, textAlign: "center" },
   heroBody: { ...typography.body, color: colors.textSecondary, textAlign: "center" },
   guidanceCopy: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
+  tapHint: { ...typography.caption, color: colors.primaryBlue, fontWeight: "700", textAlign: "center" },
   phasePill: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.white },
   phasePillText: { ...typography.caption, color: colors.primaryBlue, fontWeight: "700" },
   card: { gap: spacing.md, padding: spacing.xl, borderRadius: radius.xl, borderWidth: 1, borderColor: "rgba(13, 59, 140, 0.10)", backgroundColor: "rgba(255, 255, 255, 0.72)" },
