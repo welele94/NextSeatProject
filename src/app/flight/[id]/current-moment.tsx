@@ -43,7 +43,7 @@ export default function CurrentMomentScreen() {
             >
               <View style={styles.cardHeaderRow}>
                 <View style={[styles.cardIcon, { backgroundColor: ui.phaseTheme.accentSoft }]}>
-                  <Ionicons name="information-circle-outline" size={22} color={ui.phaseTheme.accent} />
+                  <Text style={styles.cardEmoji}>{card.emoji}</Text>
                 </View>
                 <Text style={styles.cardTitle}>{card.title}</Text>
               </View>
@@ -54,7 +54,7 @@ export default function CurrentMomentScreen() {
 
         <View style={[styles.reassuranceBox, { borderColor: ui.phaseTheme.accentBorder }]}>
           <Ionicons name="checkmark-circle-outline" size={22} color={ui.phaseTheme.accent} />
-          <Text style={[styles.reassuranceText, { color: ui.phaseTheme.accent }]}>
+          <Text style={[styles.reassuranceText, { color: ui.phaseTheme.accent }]}> 
             {explanation.closingReassurance}
           </Text>
         </View>
@@ -114,6 +114,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center"
+  },
+  cardEmoji: {
+    fontSize: 19,
+    lineHeight: 24
   },
   cardTitle: {
     ...typography.section,
