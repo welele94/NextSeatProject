@@ -86,11 +86,11 @@ function resolvePhaseTheme(snapshot: FlightSnapshot): PhaseTheme {
       };
     case "early_flight":
       return {
-        pageBackground: "#FFF7EC",
-        accent: "#A86112",
-        accentSoft: "#FFE7C2",
-        accentSurface: "#FFFBF5",
-        accentBorder: "rgba(168, 97, 18, 0.18)"
+        pageBackground: "#F1FAF8",
+        accent: "#2F8066",
+        accentSoft: "#DDF4E8",
+        accentSurface: "#F8FFFC",
+        accentBorder: "rgba(47, 128, 102, 0.18)"
       };
     case "cruise":
       return {
@@ -103,11 +103,11 @@ function resolvePhaseTheme(snapshot: FlightSnapshot): PhaseTheme {
     case "late_flight":
     case "arrival_window":
       return {
-        pageBackground: "#F3ECFF",
-        accent: "#7150A8",
-        accentSoft: "#E6D8FA",
-        accentSurface: "#FAF7FF",
-        accentBorder: "rgba(113, 80, 168, 0.17)"
+        pageBackground: "#EFF8F8",
+        accent: "#2A756D",
+        accentSoft: "#D8F0EC",
+        accentSurface: "#F7FCFB",
+        accentBorder: "rgba(42, 117, 109, 0.17)"
       };
     case "completed":
     default:
