@@ -62,6 +62,14 @@ export default function FlightTabsLayout() {
         }}
       />
 
+      <Tabs.Screen
+        name="current-moment"
+        options={{
+          href: null,
+          title: "What is happening now"
+        }}
+      />
+
       <Tabs.Screen 
         name="next-moment"
         options={{
