@@ -34,6 +34,13 @@ export default function OverviewTab() {
   const ui = buildFlightUiSnapshot(snapshot);
   const safeSnapshot = snapshot;
 
+  function openCurrentMoment() {
+    router.push({
+      pathname: "/flight/[id]/current-moment" as never,
+      params: { id: safeSnapshot.flightSummary.id } as never
+    });
+  }
+
   function openNextMoment() {
     router.push({
       pathname: "/flight/[id]/next-moment" as never,
@@ -55,6 +62,7 @@ export default function OverviewTab() {
             body={ui.reassuranceMessage.body}
             phaseLabel={ui.currentPhaseLabel}
             guidanceCopy={ui.guidanceCopy}
+            onPress={openCurrentMoment}
           />
         </View>
 
