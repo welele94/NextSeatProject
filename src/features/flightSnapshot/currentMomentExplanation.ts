@@ -1,6 +1,7 @@
 import type { FlightSnapshot } from "./types";
 
 export type CurrentMomentExplanationCard = {
+  emoji: string;
   title: string;
   body: string;
 };
@@ -20,21 +21,25 @@ const preFlightExplanation: CurrentMomentExplanation = {
     "This moment can feel slower or more formal, but it is simply the aircraft, crew, airport and passengers getting ready for the same departure.",
   cards: [
     {
+      emoji: "👥",
       title: "In the cabin",
       body:
         "The cabin crew prepares the cabin so the aircraft can depart in an organized way. You may see seats, bags, seatbelts, tray tables and the aisle being checked before everyone settles for departure."
     },
     {
+      emoji: "🧑‍✈️",
       title: "In the cockpit",
       body:
         "The pilots are preparing the flight plan, aircraft setup and departure sequence. This stage often includes routine confirmations before the aircraft leaves the gate or runway."
     },
     {
+      emoji: "📡",
       title: "With air traffic control",
       body:
         "The aircraft is part of an organized airport flow. Ground and tower controllers coordinate movement around the airport so each aircraft moves at the right time."
     },
     {
+      emoji: "💺",
       title: "What you may notice",
       body:
         "Boarding calls, short announcements, small timing changes and crew movement can all happen here. These are normal signs of preparation, not signs that something is wrong."
@@ -50,21 +55,25 @@ const takeoffExplanation: CurrentMomentExplanation = {
     "This part can feel powerful, but it is not improvised. While you feel the aircraft accelerating, several teams are following a coordinated sequence.",
   cards: [
     {
+      emoji: "👥",
       title: "In the cabin",
       body:
         "Before takeoff, the cabin may feel more serious and focused. The cabin crew may move quickly, speak more directly, or seem busy. This usually happens because everyone is preparing the aircraft to leave on time and follow the planned departure sequence.\n\nYou may notice bags being checked, seatbelts being confirmed, seats upright, tray tables closed, and the aisle kept clear.\n\nWhen the crew sits down and the cabin becomes quieter, it usually means the cabin is ready for takeoff.\n\nYou may feel some tension during this moment, but this does not mean something is wrong. What you are seeing is attention, timing, and routine."
     },
     {
+      emoji: "🧑‍✈️",
       title: "In the cockpit",
       body:
         "The pilots are following a prepared takeoff sequence. They confirm the aircraft configuration, monitor the instruments, and begin takeoff only when the aircraft is cleared. The stronger engine sound and acceleration are expected parts of this sequence."
     },
     {
+      emoji: "📡",
       title: "With air traffic control",
       body:
         "Air traffic control manages aircraft movement around the runway. Before takeoff, the aircraft receives clearance to use the runway. After takeoff, controllers continue guiding the flight as it climbs away from the airport."
     },
     {
+      emoji: "💺",
       title: "What you may feel",
       body:
         "You may feel firm acceleration, louder engines, pressure against your seat, the nose lifting, and small turns after departure. These sensations can feel intense, but they are expected during takeoff."
@@ -80,21 +89,25 @@ const cruiseExplanation: CurrentMomentExplanation = {
     "Cruise is usually the calmer part of the journey. Small changes in sound, direction or seatbelt signs can still happen as the flight follows its route.",
   cards: [
     {
+      emoji: "👥",
       title: "In the cabin",
       body:
         "The cabin crew may move around, serve passengers, collect items, or sit down if the seatbelt sign is on. Their movements usually follow the normal rhythm of the flight."
     },
     {
+      emoji: "🧑‍✈️",
       title: "In the cockpit",
       body:
         "The pilots continue monitoring the aircraft, route, weather information and communication with air traffic control. This is a steady, managed part of the journey."
     },
     {
+      emoji: "📡",
       title: "With air traffic control",
       body:
         "Air traffic control continues coordinating the flight with other aircraft in the airspace. The aircraft may receive small route or altitude adjustments as part of normal traffic flow."
     },
     {
+      emoji: "☁️",
       title: "What you may feel",
       body:
         "You may notice gentle turns, small engine sound changes, light bumps or the seatbelt sign switching on. These can be normal during cruise."
@@ -110,21 +123,25 @@ const descentExplanation: CurrentMomentExplanation = {
     "The final part of a flight can feel busier because the aircraft is gradually moving from cruise toward landing.",
   cards: [
     {
+      emoji: "👥",
       title: "In the cabin",
       body:
         "The cabin crew may collect items, check the cabin again, ask for seats upright, and prepare everyone for landing. This can feel more structured because the flight is entering its final sequence."
     },
     {
+      emoji: "🧑‍✈️",
       title: "In the cockpit",
       body:
         "The pilots prepare the descent and approach, monitor the aircraft, and follow instructions for the arrival path. This is a planned transition from cruising to landing."
     },
     {
+      emoji: "📡",
       title: "With air traffic control",
       body:
         "Air traffic control coordinates arriving aircraft so each one joins the landing flow in the correct order. Turns, speed changes or short level-offs can be part of that flow."
     },
     {
+      emoji: "💺",
       title: "What you may feel",
       body:
         "You may feel the aircraft gradually descend, engines become quieter or louder, turns, pressure in your ears, or more activity in the cabin. These are expected arrival preparations."
@@ -140,21 +157,25 @@ const afterFlightExplanation: CurrentMomentExplanation = {
     "The flying part is complete. The aircraft is now moving through the final airport steps before passengers leave the aircraft.",
   cards: [
     {
+      emoji: "👥",
       title: "In the cabin",
       body:
         "Passengers may stand, collect bags, and wait for the doors to open. The crew may ask people to stay seated until the aircraft is parked and the seatbelt sign is off."
     },
     {
+      emoji: "📍",
       title: "At the airport",
       body:
         "The aircraft may wait briefly for a stand, jet bridge, buses, or ground staff. This is part of normal airport handling after landing."
     },
     {
+      emoji: "🧳",
       title: "Baggage",
       body:
         "If you checked luggage, follow the airport signs for baggage reclaim. The arrivals screens will show the correct belt, and this information can change after landing."
     },
     {
+      emoji: "✅",
       title: "What happens next",
       body:
         "You can take your time leaving the aircraft, following signs, and moving through the airport. The journey can now be ended whenever you are ready."
