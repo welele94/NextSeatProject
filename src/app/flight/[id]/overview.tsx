@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -5,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   AirportInfoCard,
   ConfirmationPrompt,
+  CurrentMomentSummaryCard,
   EndJourneyButton,
   GuidanceModeBadge,
   JourneyProgress,
@@ -16,12 +18,20 @@ import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing } from "@/theme";
 
-function SkyBackground({ accent, soft }: { accent: string; soft: string }) {
+function SkyBackground({ accent, isSuccess }: { accent: string; isSuccess: boolean }) {
   return (
     <>
-      <View pointerEvents="none" style={[styles.cloudTop, { backgroundColor: soft }]} />
-      <View pointerEvents="none" style={[styles.cloudRight, { backgroundColor: accent }]} />
-      <View pointerEvents="none" style={[styles.cloudBottom, { backgroundColor: soft }]} />
+      <View pointerEvents="none" style={styles.skyWash} />
+      <View pointerEvents="none" style={[styles.sunGlow, isSuccess && styles.sunGlowSuccess]} />
+      <View pointerEvents="none" style={styles.cloudLeftLarge} />
+      <View pointerEvents="none" style={styles.cloudLeftSmall} />
+      <View pointerEvents="none" style={styles.cloudRightLarge} />
+      <View pointerEvents="none" style={styles.cloudRightSmall} />
+      <View pointerEvents="none" style={styles.horizonClouds} />
+      <View pointerEvents="none" style={[styles.skyPlane, { borderColor: accent }]}> 
+        <Ionicons name="airplane" size={21} color={accent} />
+      </View>
+      <View pointerEvents="none" style={[styles.planeTrail, { backgroundColor: accent }]} />
     </>
   );
 }
@@ -33,6 +43,7 @@ export default function OverviewTab() {
 
   const ui = buildFlightUiSnapshot(snapshot);
   const safeSnapshot = snapshot;
+  const isSuccess = ui.isAfterFlight;
 
   function openCurrentMoment() {
     router.push({
@@ -48,15 +59,20 @@ export default function OverviewTab() {
     });
   }
 
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: ui.phaseTheme.pageBackground }]}>
-      <SkyBackground accent={ui.phaseTheme.accent} soft={ui.phaseTheme.accentSoft} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={[styles.accentBar, { backgroundColor: ui.phaseTheme.accent }]} />
+  function openJourney() {
+    router.push({
+      pathname: "/flight/[id]/journey" as never,
+      params: { id: safeSnapshot.flightSummary.id } as never
+    });
+  }
 
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: ui.phaseTheme.pageBackground }]}> 
+      <SkyBackground accent={ui.phaseTheme.accent} isSuccess={isSuccess} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
 
-        <View style={[styles.heroSurface, { backgroundColor: ui.phaseTheme.accentSurface, borderColor: ui.phaseTheme.accentBorder }]}>
+        <View style={styles.heroSurface}>
           <StatusHeroCard
             title={ui.reassuranceMessage.title}
             body={ui.reassuranceMessage.body}
@@ -66,26 +82,18 @@ export default function OverviewTab() {
           />
         </View>
 
-        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
-          <AirportInfoCard title="Departure information" info={ui.airportInfo} />
-        </View>
+        <AirportInfoCard title="Departure information" info={ui.airportInfo} />
+        <AirportInfoCard title="After landing" info={ui.baggageInfo} />
+        <CurrentMomentSummaryCard summary={ui.currentMomentSummary} onPress={openCurrentMoment} />
 
-        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
-          <JourneyProgress
-            routeLabel={ui.routeLabel}
-            phaseLabel={ui.currentPhaseLabel}
-            progressPercent={snapshot.progress.progressPercent}
-          />
-        </View>
+        <JourneyProgress
+          routeLabel={ui.routeLabel}
+          phaseLabel={ui.currentPhaseLabel}
+          progressPercent={snapshot.progress.progressPercent}
+          onPress={openJourney}
+        />
 
-        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
-          <NextExpectedMomentCard moment={ui.nextExpectedMoment} onPress={openNextMoment} />
-        </View>
-
-        <View style={[styles.cardAccent, { borderLeftColor: ui.phaseTheme.accent }]}>
-          <AirportInfoCard title="After landing" info={ui.baggageInfo} />
-        </View>
-
+        <NextExpectedMomentCard moment={ui.nextExpectedMoment} onPress={openNextMoment} />
         <OfflineReadyCard status={ui.offlineGuidanceStatus} compact />
 
         {ui.shouldAskForConfirmation ? <ConfirmationPrompt /> : null}
@@ -96,7 +104,7 @@ export default function OverviewTab() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#EAF7FF" },
+  safeArea: { flex: 1, backgroundColor: "#EAF5FF", overflow: "hidden" },
   content: {
     width: "100%",
     maxWidth: 430,
@@ -106,48 +114,96 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: 132
   },
-  accentBar: {
-    width: 52,
-    height: 5,
-    borderRadius: radius.pill,
-    alignSelf: "center",
-    opacity: 0.85
-  },
   heroSurface: {
-    borderWidth: 1,
-    borderRadius: radius.xl,
-    paddingHorizontal: spacing.lg,
-    overflow: "hidden"
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm
   },
-  cardAccent: {
-    borderLeftWidth: 4,
-    borderRadius: radius.xl
-  },
-  cloudTop: {
+  skyWash: {
     position: "absolute",
-    top: -120,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 480,
+    backgroundColor: "#DCEEFF"
+  },
+  sunGlow: {
+    position: "absolute",
+    top: 210,
+    left: -80,
+    width: 300,
+    height: 300,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.58)"
+  },
+  sunGlowSuccess: {
+    backgroundColor: "rgba(219, 255, 228, 0.62)"
+  },
+  cloudLeftLarge: {
+    position: "absolute",
+    top: 180,
     left: -90,
-    width: 280,
-    height: 280,
+    width: 230,
+    height: 120,
     borderRadius: radius.pill,
-    opacity: 0.7
+    backgroundColor: "rgba(255, 255, 255, 0.74)"
   },
-  cloudRight: {
+  cloudLeftSmall: {
     position: "absolute",
-    top: 190,
-    right: -150,
-    width: 320,
-    height: 320,
+    top: 250,
+    left: 20,
+    width: 220,
+    height: 82,
     borderRadius: radius.pill,
-    opacity: 0.08
+    backgroundColor: "rgba(255, 255, 255, 0.58)"
   },
-  cloudBottom: {
+  cloudRightLarge: {
     position: "absolute",
-    bottom: -120,
-    left: -120,
-    width: 280,
-    height: 280,
+    top: 130,
+    right: -100,
+    width: 240,
+    height: 150,
     borderRadius: radius.pill,
-    opacity: 0.58
+    backgroundColor: "rgba(255, 255, 255, 0.72)"
+  },
+  cloudRightSmall: {
+    position: "absolute",
+    top: 286,
+    right: 8,
+    width: 190,
+    height: 90,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.5)"
+  },
+  horizonClouds: {
+    position: "absolute",
+    top: 360,
+    left: -40,
+    right: -40,
+    height: 120,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.55)"
+  },
+  skyPlane: {
+    position: "absolute",
+    top: 102,
+    right: 54,
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.62,
+    transform: [{ rotate: "8deg" }]
+  },
+  planeTrail: {
+    position: "absolute",
+    top: 124,
+    right: 92,
+    width: 122,
+    height: 2,
+    borderRadius: radius.pill,
+    opacity: 0.14,
+    transform: [{ rotate: "8deg" }]
   }
 });
