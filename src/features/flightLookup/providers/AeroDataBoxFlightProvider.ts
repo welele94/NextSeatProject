@@ -13,11 +13,12 @@ type AeroDataBoxTime = {
 
 type AeroDataBoxDistance = {
   feet?: number;
+  ft?: number;
 };
 
 type AeroDataBoxLocation = {
-  pressureAltitude?: AeroDataBoxDistance;
-  altitude?: AeroDataBoxDistance;
+  pressureAltitude?: AeroDataBoxDistance | number;
+  altitude?: AeroDataBoxDistance | number;
   vsiFpm?: number;
   reportedAtUtc?: string;
 };
@@ -87,6 +88,11 @@ function optionalNumber(value?: number): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function optionalAltitudeFeet(value?: AeroDataBoxDistance | number): number | undefined {
+  if (typeof value === "number") return optionalNumber(value);
+  return optionalNumber(value?.feet) ?? optionalNumber(value?.ft);
+}
+
 function mapStatus(status?: string): ExternalFlightStatus {
   switch (status?.trim().toLowerCase()) {
     case "scheduled":
@@ -134,6 +140,13 @@ function normalizeAeroDataBoxLocal(value?: string): string | undefined {
   return Number.isNaN(Date.parse(normalized)) ? undefined : normalized;
 }
 
+function normalizeAeroDataBoxInstant(time?: AeroDataBoxTime): string | undefined {
+  // Prefer the airport-local timestamp when it includes an offset. It is the least
+  // ambiguous value for passenger-facing timelines and avoids mixing a stale/odd
+  // provider UTC value with a fresh local time.
+  return normalizeAeroDataBoxUtc(time?.local) ?? normalizeAeroDataBoxUtc(time?.utc);
+}
+
 function preferredDepartureTime(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
   // Once a flight has pushed back or departed, actualTime is the least misleading
   // source for the departure side. revisedTime can remain close to the original
@@ -160,7 +173,7 @@ function chooseFlight(flights: AeroDataBoxFlight[], requestedFlightNumber: strin
 }
 
 function resolveLiveAltitudeFeet(location?: AeroDataBoxLocation): number | undefined {
-  return optionalNumber(location?.pressureAltitude?.feet) ?? optionalNumber(location?.altitude?.feet);
+  return optionalAltitudeFeet(location?.pressureAltitude) ?? optionalAltitudeFeet(location?.altitude);
 }
 
 function errorMessage(error: unknown): string {
@@ -224,8 +237,8 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
     const arrivalAirport = preferredAirportName(flight?.arrival);
     if (!flight || !departureAirport || !arrivalAirport) return { ok: false, reason: "not_found" };
 
-    const scheduledDepartureUtc = normalizeAeroDataBoxUtc(flight.departure?.scheduledTime?.utc);
-    const scheduledArrivalUtc = normalizeAeroDataBoxUtc(flight.arrival?.scheduledTime?.utc);
+    const scheduledDepartureUtc = normalizeAeroDataBoxInstant(flight.departure?.scheduledTime);
+    const scheduledArrivalUtc = normalizeAeroDataBoxInstant(flight.arrival?.scheduledTime);
     const estimatedDeparture = preferredDepartureTime(flight.departure);
     const estimatedArrival = preferredArrivalTime(flight.arrival);
 
@@ -252,9 +265,9 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           scheduledArrivalUtc,
           scheduledArrivalLocal: normalizeAeroDataBoxLocal(flight.arrival?.scheduledTime?.local),
 
-          estimatedDepartureUtc: normalizeAeroDataBoxUtc(estimatedDeparture?.utc),
+          estimatedDepartureUtc: normalizeAeroDataBoxInstant(estimatedDeparture),
           estimatedDepartureLocal: normalizeAeroDataBoxLocal(estimatedDeparture?.local),
-          estimatedArrivalUtc: normalizeAeroDataBoxUtc(estimatedArrival?.utc),
+          estimatedArrivalUtc: normalizeAeroDataBoxInstant(estimatedArrival),
           estimatedArrivalLocal: normalizeAeroDataBoxLocal(estimatedArrival?.local),
 
           departureTerminal: cleanOperationalValue(flight.departure?.terminal),
