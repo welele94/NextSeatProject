@@ -45,7 +45,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
     case "early_flight":
       return {
         id: "climb",
-        label: "Early flight",
+        label: "Takeoff / climb",
         description: "The aircraft is in the more active first part of the journey.",
         expectedProgressRange: { startPercent: 0, endPercent: 20 },
         intensity: "high",
@@ -65,7 +65,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
     case "late_flight":
       return {
         id: "descent",
-        label: "Later flight",
+        label: "Descent",
         description: "The journey is moving toward arrival preparation.",
         expectedProgressRange: { startPercent: 70, endPercent: 90 },
         intensity: "medium",
@@ -75,7 +75,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
     case "arrival_window":
       return {
         id: "approach",
-        label: "Arrival window",
+        label: "Approach",
         description: "The flight is in the final part of the journey.",
         expectedProgressRange: { startPercent: 90, endPercent: 100 },
         intensity: "medium",
@@ -136,7 +136,8 @@ function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgre
   return getFlightStatus(
     progress.progressPercent,
     progress.isBeforeDeparture,
-    false
+    false,
+    flight.schedule.estimatedDurationMinutes
   );
 }
 
