@@ -16,12 +16,9 @@ import { getFlightSnapshot } from "./getFlightSnapshot";
 import { FlightSnapshot } from "./types";
 
 const AFTER_FLIGHT_WINDOW_MS = 90 * 60 * 1000;
-const REGULAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-const ARRIVAL_REFRESH_INTERVAL_MS = 60 * 1000;
-const REFRESH_TIMER_MS = 60 * 1000;
+const MINIMUM_PROVIDER_REFRESH_MS = 15 * 60 * 1000;
 const REFRESH_BEFORE_DEPARTURE_MS = 2 * 60 * 60 * 1000;
 const REFRESH_AFTER_ARRIVAL_MS = 30 * 60 * 1000;
-const ARRIVAL_REFRESH_WINDOW_MS = 30 * 60 * 1000;
 
 type UseFlightSnapshotResult = {
   snapshot?: FlightSnapshot;
@@ -58,6 +55,14 @@ function isPreparedExternalFlight(id: string, flight: Flight): boolean {
   return id.startsWith("external-") || Boolean(flight.operations?.preparedAt);
 }
 
+function lastProviderUpdateMs(flight: Flight): number | undefined {
+  return (
+    parseTime(flight.operations?.providerFetchedAt) ??
+    parseTime(flight.operations?.livePositionReportedAtUtc) ??
+    parseTime(flight.operations?.preparedAt)
+  );
+}
+
 function shouldRefreshFlight(flight: Flight, now: Date): boolean {
   const status = flight.operations?.providerStatus;
   if (status === "landed" || status === "cancelled") return false;
@@ -67,19 +72,16 @@ function shouldRefreshFlight(flight: Flight, now: Date): boolean {
   if (!departureMs || !arrivalMs) return false;
 
   const nowMs = now.getTime();
-  return (
+  const isInsideActiveWindow =
     nowMs >= departureMs - REFRESH_BEFORE_DEPARTURE_MS &&
-    nowMs <= arrivalMs + REFRESH_AFTER_ARRIVAL_MS
-  );
-}
+    nowMs <= arrivalMs + REFRESH_AFTER_ARRIVAL_MS;
 
-function refreshIntervalForFlight(flight: Flight, now: Date): number {
-  const arrivalMs = parseTime(flight.schedule.revisedArrival ?? flight.schedule.scheduledArrival);
-  if (!arrivalMs) return REGULAR_REFRESH_INTERVAL_MS;
+  if (!isInsideActiveWindow) return false;
 
-  const remainingMs = arrivalMs - now.getTime();
-  const isNearArrival = remainingMs <= ARRIVAL_REFRESH_WINDOW_MS && remainingMs >= -REFRESH_AFTER_ARRIVAL_MS;
-  return isNearArrival ? ARRIVAL_REFRESH_INTERVAL_MS : REGULAR_REFRESH_INTERVAL_MS;
+  const lastUpdateMs = lastProviderUpdateMs(flight);
+  if (lastUpdateMs && nowMs - lastUpdateMs < MINIMUM_PROVIDER_REFRESH_MS) return false;
+
+  return true;
 }
 
 function preserveCurrentRouteId(refreshedFlight: Flight, currentFlight: Flight): Flight {
@@ -135,14 +137,13 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
 
     let isActive = true;
 
-    async function refreshFlightIfNeeded() {
+    async function refreshFlightOnceIfStale() {
       const now = getCurrentTimestamp();
       if (!flight || !shouldRefreshFlight(flight, now)) return;
 
       const nowMs = now.getTime();
-      const minimumRefreshInterval = refreshIntervalForFlight(flight, now);
       if (refreshInFlightRef.current) return;
-      if (lastRefreshAtRef.current && nowMs - lastRefreshAtRef.current < minimumRefreshInterval) return;
+      if (lastRefreshAtRef.current && nowMs - lastRefreshAtRef.current < MINIMUM_PROVIDER_REFRESH_MS) return;
 
       refreshInFlightRef.current = true;
       lastRefreshAtRef.current = nowMs;
@@ -167,12 +168,12 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
       }
     }
 
-    void refreshFlightIfNeeded();
-    const timer = setInterval(refreshFlightIfNeeded, REFRESH_TIMER_MS);
+    // Do not poll. The provider plan is limited, so this only refreshes once
+    // when the saved provider data is clearly stale.
+    void refreshFlightOnceIfStale();
 
     return () => {
       isActive = false;
-      clearInterval(timer);
     };
   }, [flight, id]);
 
