@@ -2,7 +2,6 @@ import { Flight, FlightProgress } from "@/types/flight";
 import { JourneyInformation, JourneyPhase } from "@/types/journey";
 
 import { calculateFlightProgress } from "@/features/flightCore/calculateFlightProgress";
-import { estimateRemainingTime } from "@/features/flightCore/estimateRemainingTime";
 import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
 import { FlightStatus, getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
@@ -47,7 +46,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
         id: "climb",
         label: "Takeoff / climb",
         description: "The aircraft is in the more active first part of the journey.",
-        expectedProgressRange: { startPercent: 0, endPercent: 20 },
+        expectedProgressRange: { startPercent: 0, endPercent: 15 },
         intensity: "high",
         passengerMeaning: "More movement and changes in sound can be normal here.",
         typicalSensations: ["stronger engine sound", "turns", "changing angle"]
@@ -57,7 +56,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
         id: "cruise",
         label: "Cruise",
         description: "The aircraft is in the stable middle part of the route.",
-        expectedProgressRange: { startPercent: 20, endPercent: 70 },
+        expectedProgressRange: { startPercent: 15, endPercent: 100 },
         intensity: "low",
         passengerMeaning: "This is usually the calmest and steadiest part of the flight.",
         typicalSensations: ["small sound changes", "minor course adjustments"]
@@ -67,7 +66,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
         id: "descent",
         label: "Descent",
         description: "The journey is moving toward arrival preparation.",
-        expectedProgressRange: { startPercent: 70, endPercent: 90 },
+        expectedProgressRange: { startPercent: 0, endPercent: 100 },
         intensity: "medium",
         passengerMeaning: "The next noticeable changes may be linked to preparing for arrival.",
         typicalSensations: ["gradual turns", "engine sound changes"]
@@ -77,7 +76,7 @@ function resolveJourneyPhase(status: FlightStatus): JourneyPhase {
         id: "approach",
         label: "Approach",
         description: "The flight is in the final part of the journey.",
-        expectedProgressRange: { startPercent: 90, endPercent: 100 },
+        expectedProgressRange: { startPercent: 0, endPercent: 100 },
         intensity: "medium",
         passengerMeaning: "This part can feel busier while the aircraft lines up to arrive.",
         typicalSensations: ["turns", "speed changes", "landing preparation"]
@@ -137,19 +136,18 @@ function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgre
     progress.progressPercent,
     progress.isBeforeDeparture,
     false,
-    flight.schedule.estimatedDurationMinutes
+    flight.schedule.estimatedDurationMinutes,
+    progress.elapsedMinutes,
+    progress.remainingMinutes
   );
 }
 
 export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSnapshot {
   const rawProgress = calculateFlightProgress(flight, currentTime);
   const status = resolveStatus(flight, currentTime, rawProgress);
-  const remainingMinutes = status === "completed"
-    ? 0
-    : estimateRemainingTime(flight, rawProgress.progressPercent);
   const progress: FlightProgress = status === "completed"
     ? { ...rawProgress, progressPercent: 100, remainingMinutes: 0, isAfterArrival: true }
-    : { ...rawProgress, remainingMinutes, isAfterArrival: false };
+    : { ...rawProgress, isAfterArrival: false };
 
   const currentCheckpoint = getCurrentCheckpoint(flight.checkpoints, progress.progressPercent);
   const nextCheckpoint = getNextCheckpoint(flight.checkpoints, progress.progressPercent);
