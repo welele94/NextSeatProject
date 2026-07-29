@@ -27,6 +27,8 @@ export function buildFlightSummary(flight: Flight): FlightSummary {
     destinationLabel: flight.destination.city,
     originCode: flight.origin.code,
     destinationCode: flight.destination.code,
+    originCoordinates: flight.origin.coordinates,
+    destinationCoordinates: flight.destination.coordinates,
     routeLabel: `${flight.origin.city} → ${flight.destination.city}`,
     scheduledDepartureLabel: formatDeviceTime(flight.schedule.scheduledDeparture),
     scheduledArrivalLabel: formatDeviceTime(flight.schedule.scheduledArrival),
