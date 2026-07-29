@@ -11,6 +11,17 @@ type AeroDataBoxTime = {
   local?: string;
 };
 
+type AeroDataBoxDistance = {
+  feet?: number;
+};
+
+type AeroDataBoxLocation = {
+  pressureAltitude?: AeroDataBoxDistance;
+  altitude?: AeroDataBoxDistance;
+  vsiFpm?: number;
+  reportedAtUtc?: string;
+};
+
 type AeroDataBoxMovement = {
   airport?: {
     iata?: string;
@@ -40,6 +51,7 @@ type AeroDataBoxFlight = {
     name?: string;
     iata?: string;
   };
+  location?: AeroDataBoxLocation;
 };
 
 type AeroDataBoxFlightProviderOptions = {
@@ -69,6 +81,10 @@ function todayUtc(): string {
 function cleanOperationalValue(value?: string): string | undefined {
   const cleaned = value?.trim();
   return cleaned || undefined;
+}
+
+function optionalNumber(value?: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function mapStatus(status?: string): ExternalFlightStatus {
@@ -143,6 +159,10 @@ function chooseFlight(flights: AeroDataBoxFlight[], requestedFlightNumber: strin
   return flights.find((flight) => normalizeFlightNumber(flight.number ?? "") === requestedFlightNumber) ?? flights[0];
 }
 
+function resolveLiveAltitudeFeet(location?: AeroDataBoxLocation): number | undefined {
+  return optionalNumber(location?.pressureAltitude?.feet) ?? optionalNumber(location?.altitude?.feet);
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -165,7 +185,7 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
     const url = new URL(`/flights/number/${encodeURIComponent(flightNumber)}/${encodeURIComponent(date)}`, RAPID_API_BASE_URL);
     url.searchParams.set("withAircraftImage", "false");
-    url.searchParams.set("withLocation", "false");
+    url.searchParams.set("withLocation", "true");
 
     let response: Response;
     try {
@@ -243,7 +263,10 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           aircraftModel: cleanOperationalValue(flight.aircraft?.model),
 
           status: mapStatus(flight.status),
-          durationMinutes: calculateDurationMinutes(scheduledDepartureUtc, scheduledArrivalUtc)
+          durationMinutes: calculateDurationMinutes(scheduledDepartureUtc, scheduledArrivalUtc),
+          liveAltitudeFeet: resolveLiveAltitudeFeet(flight.location),
+          liveVerticalSpeedFeetPerMinute: optionalNumber(flight.location?.vsiFpm),
+          livePositionReportedAtUtc: normalizeAeroDataBoxUtc(flight.location?.reportedAtUtc)
         },
         "aerodatabox"
       )
