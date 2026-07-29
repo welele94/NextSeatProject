@@ -1,6 +1,6 @@
 import { FlightProgress } from "@/types/flight";
 import { JourneyInformation, JourneyPhase } from "@/types/journey";
-import { RouteCheckpoint } from "@/types/route";
+import { Coordinates, RouteCheckpoint } from "@/types/route";
 
 import { FlightStatus } from "@/features/flightCore/getFlightStatus";
 import { FlightGuidanceState } from "@/features/guidance/types";
@@ -19,6 +19,8 @@ export type FlightSummary = {
   destinationLabel: string;
   originCode: string;
   destinationCode: string;
+  originCoordinates: Coordinates;
+  destinationCoordinates: Coordinates;
   routeLabel: string;
   scheduledDepartureLabel: string;
   scheduledArrivalLabel: string;
