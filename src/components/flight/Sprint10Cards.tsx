@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { DimensionValue } from "react-native";
 
 import { colors, radius, spacing, typography } from "@/theme";
 import type { FlightSummary } from "@/features/flightSnapshot/types";
@@ -20,6 +21,14 @@ function isArrivedPhase(phaseLabel: string): boolean {
   return phaseLabel.toLowerCase().includes("arriv");
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function asPercent(value: number): DimensionValue {
+  return `${clamp(value, 0, 100)}%` as DimensionValue;
+}
+
 function getHeroIcon(phaseLabel: string): IoniconName {
   const normalized = phaseLabel.toLowerCase();
   if (normalized.includes("arriv")) return "checkmark";
@@ -35,14 +44,12 @@ function getAirportIcon(title: string, info: AirportInfo): IoniconName {
   return "business-outline";
 }
 
-function getCurrentJourneyPercent(phaseLabel: string, progressPercent: number): number {
-  const normalized = phaseLabel.toLowerCase();
-  if (normalized.includes("arriv")) return 100;
-  if (normalized.includes("pre")) return Math.max(Math.round(progressPercent), 6);
-  if (normalized.includes("takeoff")) return Math.max(Math.round(progressPercent), 18);
-  if (normalized.includes("cruise")) return Math.max(Math.round(progressPercent), 56);
-  if (normalized.includes("descent") || normalized.includes("approach")) return Math.max(Math.round(progressPercent), 82);
-  return Math.max(Math.round(progressPercent), 4);
+function getCurrentJourneyPercent(progressPercent: number): number {
+  return clamp(Math.round(progressPercent), 0, 100);
+}
+
+function getPlaneMarkerPercent(displayPercent: number): number {
+  return clamp(displayPercent, 6, 94);
 }
 
 function phaseBadgeIcon(phaseLabel: string): IoniconName {
@@ -104,9 +111,7 @@ export function StatusHeroCard({ title, body, phaseLabel, guidanceCopy, onPress 
     </>
   );
 
-  if (!onPress) {
-    return <View style={styles.hero}>{content}</View>;
-  }
+  if (!onPress) return <View style={styles.hero}>{content}</View>;
 
   return (
     <Pressable
@@ -125,8 +130,8 @@ export function JourneyProgress({ routeLabel, phaseLabel, progressPercent, onPre
   progressPercent: number;
   onPress?: () => void;
 }) {
-  const displayPercent = Math.min(Math.max(getCurrentJourneyPercent(phaseLabel, progressPercent), 0), 100);
-  const planeLeft = Math.min(Math.max(displayPercent, 6), 94);
+  const displayPercent = getCurrentJourneyPercent(progressPercent);
+  const planeLeft = getPlaneMarkerPercent(displayPercent);
   const isSuccess = isArrivedPhase(phaseLabel);
   const progressColor = isSuccess ? colors.successGreen : colors.skyBlueStrong;
   const stepLabels = ["Pre-flight", "Takeoff", "Cruise", "Descent", "Arrival"];
@@ -149,10 +154,12 @@ export function JourneyProgress({ routeLabel, phaseLabel, progressPercent, onPre
 
       <View style={styles.visualTracker}>
         <View style={styles.routeTrack}>
-          <View style={[styles.routeTrackFill, { width: `${displayPercent}%`, backgroundColor: progressColor }]} />
+          <View style={styles.routeTrackBase} />
+          <View style={[styles.routeTrackFill, { width: asPercent(displayPercent), backgroundColor: progressColor }]} />
           {stepLabels.map((label, index) => {
-            const left = `${(index / (stepLabels.length - 1)) * 100}%`;
-            const isPast = (index / (stepLabels.length - 1)) * 100 <= displayPercent;
+            const nodePercent = (index / (stepLabels.length - 1)) * 100;
+            const left = asPercent(nodePercent);
+            const isPast = nodePercent <= displayPercent;
             return (
               <View
                 key={label}
@@ -164,7 +171,7 @@ export function JourneyProgress({ routeLabel, phaseLabel, progressPercent, onPre
               />
             );
           })}
-          <View style={[styles.planeMarker, { left: `${planeLeft}%`, backgroundColor: progressColor }]}> 
+          <View style={[styles.planeMarker, { left: asPercent(planeLeft), backgroundColor: progressColor }]}> 
             <Ionicons name="airplane" size={20} color={colors.white} />
           </View>
         </View>
@@ -488,6 +495,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "relative",
     marginHorizontal: 4
+  },
+  routeTrackBase: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: "#D8E7F8"
   },
   routeTrackFill: {
     position: "absolute",
