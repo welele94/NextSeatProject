@@ -70,7 +70,8 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       providerStatus: seed.status,
       departureTerminal: seed.departureTerminal,
       departureGate: seed.departureGate,
-      baggageBelt: seed.baggageBelt
+      baggageBelt: seed.baggageBelt,
+      preparedAt: new Date().toISOString()
     },
     routeDistanceKm: estimatedDistanceKm,
     routeCoordinates: [
