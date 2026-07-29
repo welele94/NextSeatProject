@@ -1,214 +1,164 @@
+import { Ionicons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { GuidanceModeBadge } from "@/components/flight/Sprint10Cards";
+import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
-import type { FlightSnapshot } from "@/features/flightSnapshot/types";
 import { colors, radius, spacing, typography } from "@/theme";
-import type { JourneyPhaseId } from "@/types/journey";
 
-type JourneyTimelineStepId = "pre_flight" | JourneyPhaseId | "after_flight";
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
-type JourneyStepState = "completed" | "current" | "upcoming";
-
-type JourneyStep = {
-  id: JourneyTimelineStepId;
-  title: string;
-  time?: string;
-  helper: string;
-  state: JourneyStepState;
+type JourneyStage = {
+  label: string;
+  icon: IoniconName;
+  threshold: number;
 };
 
-const journeyOrder: JourneyTimelineStepId[] = [
-  "pre_flight",
-  "departure",
-  "climb",
-  "cruise",
-  "descent",
-  "approach",
-  "arrival",
-  "after_flight"
+const journeyStages: JourneyStage[] = [
+  { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
+  { label: "Takeoff", icon: "airplane", threshold: 15 },
+  { label: "Cruise", icon: "cloud-outline", threshold: 50 },
+  { label: "Descent", icon: "navigate-outline", threshold: 80 },
+  { label: "Arrival", icon: "business-outline", threshold: 100 }
 ];
 
-const journeyLabels: Record<JourneyTimelineStepId, string> = {
-  pre_flight: "Pre-flight",
-  departure: "Departure",
-  climb: "Climb",
-  cruise: "Cruise",
-  descent: "Descent",
-  approach: "Approach",
-  arrival: "Arrival",
-  after_flight: "After flight"
-};
-
-const journeyHelpers: Record<JourneyTimelineStepId, string> = {
-  pre_flight: "Before departure",
-  departure: "Leaving the gate and starting the journey",
-  climb: "The aircraft settles into the first part of flight",
-  cruise: "Usually the calmest and steadiest part",
-  descent: "Gradual preparation for arrival",
-  approach: "The final part before landing",
-  arrival: "Expected arrival",
-  after_flight: "After landing"
-};
-
-function addMinutesToTimeLabel(
-  timeLabel: string | undefined,
-  minutesToAdd: number
-): string | undefined {
-  if (!timeLabel || !/^\d{2}:\d{2}$/.test(timeLabel)) {
-    return undefined;
-  }
-
-  const [hours, minutes] = timeLabel.split(":").map(Number);
-  const date = new Date();
-
-  date.setHours(hours);
-  date.setMinutes(minutes + minutesToAdd);
-  date.setSeconds(0);
-  date.setMilliseconds(0);
-
-  const nextHours = String(date.getHours()).padStart(2, "0");
-  const nextMinutes = String(date.getMinutes()).padStart(2, "0");
-
-  return `${nextHours}:${nextMinutes}`;
-}
-
-function getCurrentTimelineStep(snapshot: FlightSnapshot): JourneyTimelineStepId {
-  if (snapshot.progress.isBeforeDeparture) {
-    return "pre_flight";
-  }
-
-  if (snapshot.progress.isAfterArrival) {
-    return "after_flight";
-  }
-
-  return snapshot.phase.id;
-}
-
-function getCurrentJourneyIndex(snapshot: FlightSnapshot): number {
-  const currentStep = getCurrentTimelineStep(snapshot);
-  const index = journeyOrder.indexOf(currentStep);
-
-  return index >= 0 ? index : 0;
-}
-
-function buildJourneySteps(snapshot: FlightSnapshot): JourneyStep[] {
-  const currentIndex = getCurrentJourneyIndex(snapshot);
-
-  const departureTime =
-    snapshot.flightSummary.revisedDepartureLabel ?? snapshot.flightSummary.scheduledDepartureLabel;
-  const arrivalTime =
-    snapshot.flightSummary.revisedArrivalLabel ?? snapshot.flightSummary.scheduledArrivalLabel;
-
-  const timeByStep: Record<JourneyTimelineStepId, string | undefined> = {
-    pre_flight: "Before departure",
-    departure: departureTime,
-    climb: addMinutesToTimeLabel(departureTime, 15),
-    cruise: addMinutesToTimeLabel(departureTime, 30),
-    descent: "Later",
-    approach: "Later",
-    arrival: `Expected ${arrivalTime}`,
-    after_flight: "After landing"
+function splitRoute(routeLabel: string) {
+  const parts = routeLabel.split("→").map((part) => part.trim());
+  return {
+    origin: parts[0] || "Origin",
+    destination: parts[1] || "Destination"
   };
-
-  return journeyOrder.map((stepId, index) => {
-    const state =
-      index < currentIndex
-        ? "completed"
-        : index === currentIndex
-          ? "current"
-          : "upcoming";
-
-    return {
-      id: stepId,
-      title: journeyLabels[stepId],
-      time: timeByStep[stepId],
-      helper: journeyHelpers[stepId],
-      state
-    };
-  });
 }
 
-function JourneyTimeline({ steps }: { steps: JourneyStep[] }) {
+function getJourneyPercent(phaseLabel: string, progressPercent: number): number {
+  const normalized = phaseLabel.toLowerCase();
+  if (normalized.includes("arriv")) return 100;
+  if (normalized.includes("pre")) return Math.max(Math.round(progressPercent), 6);
+  if (normalized.includes("takeoff")) return Math.max(Math.round(progressPercent), 18);
+  if (normalized.includes("cruise")) return Math.max(Math.round(progressPercent), 56);
+  if (normalized.includes("descent") || normalized.includes("approach")) return Math.max(Math.round(progressPercent), 82);
+  return Math.max(Math.round(progressPercent), 4);
+}
+
+function getActiveStageIndex(percent: number): number {
+  if (percent >= 100) return journeyStages.length - 1;
+  if (percent >= 80) return 3;
+  if (percent >= 20) return 2;
+  if (percent >= 10) return 1;
+  return 0;
+}
+
+function SkyBackground() {
   return (
-    <View style={styles.timeline}>
-      {steps.map((step, index) => {
-        const isLast = index === steps.length - 1;
-        const isCompleted = step.state === "completed";
-        const isCurrent = step.state === "current";
-        const isUpcoming = step.state === "upcoming";
+    <>
+      <View pointerEvents="none" style={styles.skyWash} />
+      <View pointerEvents="none" style={styles.cloudLeft} />
+      <View pointerEvents="none" style={styles.cloudRight} />
+      <View pointerEvents="none" style={styles.horizonCloud} />
+    </>
+  );
+}
 
-        return (
-          <View key={step.id} style={styles.timelineRow}>
-            <View style={styles.markerColumn}>
-              {!isLast ? (
-                <View
-                  style={[
-                    styles.timelineLine,
-                    isCompleted && styles.timelineLineCompleted,
-                    isCurrent && styles.timelineLineCurrent
-                  ]}
-                />
-              ) : null}
+function GlobeRoute({ origin, destination, percent }: {
+  origin: string;
+  destination: string;
+  percent: number;
+}) {
+  const planeLeft = Math.min(Math.max(percent, 12), 88);
 
+  return (
+    <View style={styles.globeCard}>
+      <View style={styles.globeHeader}>
+        <Text style={styles.screenTitle}>Current journey</Text>
+        <Text style={styles.screenRoute}>{origin} → {destination}</Text>
+        <View style={styles.flightBadge}>
+          <Ionicons name="airplane" size={15} color={colors.skyBlueStrong} />
+          <Text style={styles.flightBadgeText}>{percent >= 100 ? "Arrived" : "In Flight"}</Text>
+        </View>
+      </View>
+
+      <View style={styles.globe}> 
+        <View style={[styles.landBlob, styles.landNorth]} />
+        <View style={[styles.landBlob, styles.landWest]} />
+        <View style={[styles.landBlob, styles.landEast]} />
+        <View style={[styles.landBlob, styles.landSouth]} />
+        <View style={styles.globeCloudOne} />
+        <View style={styles.globeCloudTwo} />
+        <View style={styles.routeArc} />
+        <View style={[styles.globePlane, { left: `${planeLeft}%` }]}> 
+          <Ionicons name="airplane" size={28} color={colors.white} />
+        </View>
+        <View style={[styles.locationMarker, styles.originMarker]}>
+          <View style={styles.markerDot} />
+          <Text style={styles.markerLabel}>{origin}</Text>
+        </View>
+        <View style={[styles.locationMarker, styles.destinationMarker]}>
+          <View style={styles.markerDot} />
+          <Text style={styles.markerLabel}>{destination}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function PhaseProgressCard({ percent, activeIndex }: {
+  percent: number;
+  activeIndex: number;
+}) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.phaseTrack}> 
+        <View style={styles.phaseLine} />
+        <View style={[styles.phaseLineFill, { width: `${Math.min(percent, 100)}%` }]} />
+        {journeyStages.map((stage, index) => {
+          const isCompleted = index < activeIndex;
+          const isCurrent = index === activeIndex;
+          const isArrived = percent >= 100;
+          const activeColor = isArrived ? colors.successGreen : colors.skyBlueStrong;
+          return (
+            <View key={stage.label} style={[styles.stageItem, { left: `${stage.threshold}%` }]}> 
               <View
                 style={[
-                  styles.timelineDot,
-                  isCompleted && styles.timelineDotCompleted,
-                  isCurrent && styles.timelineDotCurrent,
-                  isUpcoming && styles.timelineDotUpcoming
+                  styles.stageIcon,
+                  (isCompleted || isCurrent) && { backgroundColor: activeColor },
+                  isCurrent && styles.stageIconCurrent
                 ]}
-              />
-            </View>
-
-            <View style={styles.stepContent}>
-              <View style={styles.stepText}>
-                <Text
-                  style={[
-                    styles.stepTitle,
-                    isUpcoming && styles.stepTitleUpcoming
-                  ]}
-                >
-                  {step.title}
-                </Text>
-
-                {step.time ? (
-                  <Text
-                    style={[
-                      styles.stepTime,
-                      isUpcoming && styles.stepTimeUpcoming
-                    ]}
-                  >
-                    {step.time}
-                  </Text>
-                ) : null}
-
-                <Text style={styles.stepHelper}>{step.helper}</Text>
+              >
+                <Ionicons name={stage.icon} size={isCurrent ? 24 : 19} color={(isCompleted || isCurrent) ? colors.white : "#8AA3C2"} />
               </View>
-
-              {isCompleted || isCurrent ? (
-                <View
-                  style={[
-                    styles.badge,
-                    isCompleted && styles.completedBadge,
-                    isCurrent && styles.currentBadge
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.badgeText,
-                      isCompleted && styles.completedBadgeText,
-                      isCurrent && styles.currentBadgeText
-                    ]}
-                  >
-                    {isCompleted ? "Completed" : "Current"}
-                  </Text>
-                </View>
-              ) : null}
+              <Text style={[styles.stageLabel, isCurrent && { color: activeColor, fontWeight: "800" }]}>{stage.label}</Text>
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
+      <Text style={[styles.progressNumber, { color: percent >= 100 ? colors.successGreen : colors.skyBlueStrong }]}>{percent}%</Text>
+      <Text style={styles.progressCaption}>of journey</Text>
+    </View>
+  );
+}
+
+function InfoCard({ icon, title, body, progress }: {
+  icon: IoniconName;
+  title: string;
+  body: string;
+  progress?: number;
+}) {
+  return (
+    <View style={styles.infoCard}>
+      <View style={styles.infoIconCircle}>
+        {typeof progress === "number" ? (
+          <Text style={styles.infoProgressText}>{progress}%</Text>
+        ) : (
+          <Ionicons name={icon} size={30} color={colors.skyBlueStrong} />
+        )}
+      </View>
+      <View style={styles.infoText}>
+        <Text style={styles.infoTitle}>{title}</Text>
+        <Text style={styles.infoBody}>{body}</Text>
+      </View>
+      <Text style={styles.infoChevron}>›</Text>
     </View>
   );
 }
@@ -229,16 +179,32 @@ export default function JourneyTab() {
     );
   }
 
-  const steps = buildJourneySteps(snapshot);
+  const ui = buildFlightUiSnapshot(snapshot);
+  const { origin, destination } = splitRoute(ui.routeLabel);
+  const percent = getJourneyPercent(ui.currentPhaseLabel, snapshot.progress.progressPercent);
+  const activeIndex = getActiveStageIndex(percent);
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <SkyBackground />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <Text style={styles.screenTitle}>Your journey</Text>
-        <JourneyTimeline steps={steps} />
+        <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
+        <GlobeRoute origin={origin} destination={destination} percent={percent} />
+        <PhaseProgressCard percent={percent} activeIndex={activeIndex} />
+        <InfoCard
+          icon="globe-outline"
+          title="Flight path"
+          body={`Your journey is following the planned route toward ${destination}.`}
+        />
+        <InfoCard
+          icon="analytics-outline"
+          title="Estimated progress"
+          body={`${percent}% of the journey completed`}
+          progress={percent}
+        />
         <Text style={styles.timeNote}>{snapshot.flightSummary.timeDisplayNote}</Text>
       </ScrollView>
     </SafeAreaView>
@@ -248,172 +214,299 @@ export default function JourneyTab() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.surface
+    backgroundColor: "#EAF5FF",
+    overflow: "hidden"
   },
-
+  skyWash: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 520,
+    backgroundColor: "#DCEEFF"
+  },
+  cloudLeft: {
+    position: "absolute",
+    top: 140,
+    left: -110,
+    width: 260,
+    height: 150,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.68)"
+  },
+  cloudRight: {
+    position: "absolute",
+    top: 210,
+    right: -120,
+    width: 300,
+    height: 170,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.62)"
+  },
+  horizonCloud: {
+    position: "absolute",
+    top: 420,
+    left: -60,
+    right: -60,
+    height: 120,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.54)"
+  },
   content: {
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
+    gap: spacing.lg,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing["4xl"],
+    paddingTop: spacing.lg,
     paddingBottom: 132
   },
-
-  screenTitle: {
-    ...typography.title,
-    color: colors.textPrimary,
-    textAlign: "center",
-    marginBottom: spacing["4xl"]
-  },
-
-  timeline: {
-    width: "100%",
-    maxWidth: 380,
-    alignSelf: "center"
-  },
-
-  timelineRow: {
-    minHeight: 84,
-    flexDirection: "row"
-  },
-
-  markerColumn: {
-    width: 34,
+  globeCard: {
     alignItems: "center",
-    position: "relative"
+    gap: spacing.lg,
+    paddingTop: spacing.lg
   },
-
-  timelineLine: {
-    position: "absolute",
-    top: 16,
-    bottom: -16,
-    width: 2,
-    borderRadius: radius.pill,
-    backgroundColor: colors.border
+  globeHeader: {
+    alignItems: "center",
+    gap: spacing.sm
   },
-
-  timelineLineCompleted: {
-    backgroundColor: "#8BC6B4"
-  },
-
-  timelineLineCurrent: {
-    backgroundColor: "#9DB9EA"
-  },
-
-  timelineDot: {
-    zIndex: 1,
-    marginTop: 2,
-    borderRadius: radius.pill
-  },
-
-  timelineDotCompleted: {
-    width: 12,
-    height: 12,
-    backgroundColor: "#8BC6B4"
-  },
-
-  timelineDotCurrent: {
-    width: 14,
-    height: 14,
-    backgroundColor: colors.primaryBlue
-  },
-
-  timelineDotUpcoming: {
-    width: 12,
-    height: 12,
-    borderWidth: 2,
-    borderColor: "#9CAFC3",
-    backgroundColor: colors.surface
-  },
-
-  stepContent: {
-    flex: 1,
-    minHeight: 84,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingLeft: spacing.md
-  },
-
-  stepText: {
-    flex: 1,
-    gap: spacing.xs
-  },
-
-  stepTitle: {
-    ...typography.body,
+  screenTitle: {
+    ...typography.hero,
     color: colors.textPrimary,
-    fontWeight: "700"
+    textAlign: "center"
   },
-
-  stepTitleUpcoming: {
-    color: colors.textPrimary
+  screenRoute: {
+    ...typography.section,
+    color: colors.textPrimary,
+    textAlign: "center"
   },
-
-  stepTime: {
-    ...typography.caption,
-    color: colors.textSecondary
-  },
-
-  stepTimeUpcoming: {
-    color: "#9CAFC3"
-  },
-
-  stepHelper: {
-    ...typography.caption,
-    color: colors.textSecondary
-  },
-
-  badge: {
-    alignSelf: "flex-start",
+  flightBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(18, 102, 227, 0.14)"
+  },
+  flightBadgeText: {
+    ...typography.caption,
+    color: colors.skyBlueStrong,
+    fontWeight: "800"
+  },
+  globe: {
+    width: 520,
+    height: 330,
+    borderRadius: 260,
+    backgroundColor: "#BFE0FF",
+    overflow: "hidden",
+    position: "relative",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.75)",
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.2,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 7
+  },
+  landBlob: {
+    position: "absolute",
+    backgroundColor: "rgba(245, 250, 255, 0.82)",
     borderRadius: radius.pill
   },
-
-  completedBadge: {
-    backgroundColor: colors.successGreen
+  landNorth: { top: 40, left: 190, width: 190, height: 58, transform: [{ rotate: "8deg" }] },
+  landWest: { top: 116, left: 90, width: 170, height: 78, transform: [{ rotate: "-12deg" }] },
+  landEast: { top: 116, right: 82, width: 180, height: 86, transform: [{ rotate: "10deg" }] },
+  landSouth: { bottom: 28, left: 164, width: 220, height: 72, transform: [{ rotate: "3deg" }] },
+  globeCloudOne: { position: "absolute", top: 78, left: 50, width: 180, height: 34, borderRadius: radius.pill, backgroundColor: "rgba(255, 255, 255, 0.42)" },
+  globeCloudTwo: { position: "absolute", top: 210, right: 40, width: 200, height: 38, borderRadius: radius.pill, backgroundColor: "rgba(255, 255, 255, 0.36)" },
+  routeArc: {
+    position: "absolute",
+    left: 110,
+    right: 110,
+    top: 148,
+    height: 96,
+    borderTopWidth: 4,
+    borderColor: colors.skyBlueStrong,
+    borderRadius: 180,
+    transform: [{ rotate: "2deg" }]
   },
-
-  currentBadge: {
-    backgroundColor: colors.cruiseBlue
+  globePlane: {
+    position: "absolute",
+    top: 158,
+    width: 44,
+    height: 44,
+    marginLeft: -22,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.skyBlueStrong,
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5
   },
-
-  badgeText: {
+  locationMarker: {
+    position: "absolute",
+    alignItems: "center",
+    gap: 3
+  },
+  originMarker: { left: 116, top: 176 },
+  destinationMarker: { right: 112, top: 178 },
+  markerDot: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.pill,
+    borderWidth: 5,
+    borderColor: colors.white,
+    backgroundColor: colors.skyBlueStrong
+  },
+  markerLabel: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: "800",
+    backgroundColor: "rgba(255,255,255,0.78)",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    overflow: "hidden"
+  },
+  card: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    borderRadius: radius.xl,
+    borderWidth: 1.2,
+    borderColor: "rgba(13, 59, 140, 0.18)",
+    backgroundColor: "rgba(255, 255, 255, 0.94)",
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4
+  },
+  phaseTrack: {
+    height: 88,
+    position: "relative",
+    justifyContent: "center"
+  },
+  phaseLine: {
+    position: "absolute",
+    left: 26,
+    right: 26,
+    top: 28,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: "#CFDDED"
+  },
+  phaseLineFill: {
+    position: "absolute",
+    left: 26,
+    top: 28,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.skyBlueStrong
+  },
+  stageItem: {
+    position: "absolute",
+    top: 0,
+    width: 74,
+    marginLeft: -37,
+    alignItems: "center",
+    gap: spacing.xs
+  },
+  stageIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF4FB",
+    borderWidth: 3,
+    borderColor: colors.white
+  },
+  stageIconCurrent: {
+    width: 56,
+    height: 56,
+    marginTop: -6,
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5
+  },
+  stageLabel: {
     ...typography.caption,
     fontSize: 11,
-    lineHeight: 16,
-    fontWeight: "700"
+    lineHeight: 14,
+    color: colors.textPrimary,
+    textAlign: "center"
   },
-
-  completedBadgeText: {
-    color: "#4F9D80"
+  progressNumber: {
+    ...typography.hero,
+    textAlign: "center",
+    fontSize: 34,
+    lineHeight: 38
   },
-
-  currentBadgeText: {
-    color: colors.primaryBlue
+  progressCaption: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    textAlign: "center",
+    marginTop: -spacing.sm
   },
-
+  infoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: radius.xl,
+    borderWidth: 1.2,
+    borderColor: "rgba(13, 59, 140, 0.18)",
+    backgroundColor: "rgba(255, 255, 255, 0.94)",
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3
+  },
+  infoIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EAF3FF",
+    borderWidth: 4,
+    borderColor: "rgba(255,255,255,0.88)"
+  },
+  infoProgressText: {
+    ...typography.section,
+    color: colors.skyBlueStrong,
+    fontWeight: "800"
+  },
+  infoText: { flex: 1, gap: spacing.xs },
+  infoTitle: { ...typography.section, color: colors.skyBlueStrong },
+  infoBody: { ...typography.body, color: colors.textPrimary },
+  infoChevron: { fontSize: 32, lineHeight: 36, color: colors.skyBlueStrong },
   timeNote: {
     ...typography.caption,
     color: colors.textSecondary,
     textAlign: "center",
-    marginTop: spacing.xl
+    marginTop: spacing.sm
   },
-
   emptyState: {
     flex: 1,
     justifyContent: "center",
     padding: spacing.xl,
     gap: spacing.sm
   },
-
   emptyTitle: {
     ...typography.title,
     color: colors.textPrimary
   },
-
   emptyBody: {
     ...typography.body,
     color: colors.textSecondary
