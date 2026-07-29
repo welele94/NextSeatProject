@@ -16,6 +16,13 @@ type AeroDataBoxDistance = {
   ft?: number;
 };
 
+type AeroDataBoxCoordinates = {
+  lat?: number;
+  lon?: number;
+  latitude?: number;
+  longitude?: number;
+};
+
 type AeroDataBoxLocation = {
   pressureAltitude?: AeroDataBoxDistance | number;
   altitude?: AeroDataBoxDistance | number;
@@ -30,6 +37,7 @@ type AeroDataBoxMovement = {
     shortName?: string;
     municipalityName?: string;
     timeZone?: string;
+    location?: AeroDataBoxCoordinates;
   };
   scheduledTime?: AeroDataBoxTime;
   revisedTime?: AeroDataBoxTime;
@@ -86,6 +94,26 @@ function cleanOperationalValue(value?: string): string | undefined {
 
 function optionalNumber(value?: number): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function optionalLatitude(value?: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= -90 && value <= 90
+    ? value
+    : undefined;
+}
+
+function optionalLongitude(value?: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= -180 && value <= 180
+    ? value
+    : undefined;
+}
+
+function airportLatitude(location?: AeroDataBoxCoordinates): number | undefined {
+  return optionalLatitude(location?.lat) ?? optionalLatitude(location?.latitude);
+}
+
+function airportLongitude(location?: AeroDataBoxCoordinates): number | undefined {
+  return optionalLongitude(location?.lon) ?? optionalLongitude(location?.longitude);
 }
 
 function optionalAltitudeFeet(value?: AeroDataBoxDistance | number): number | undefined {
@@ -254,11 +282,15 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           departureAirportCode: flight.departure?.airport?.iata,
           departureCity: flight.departure?.airport?.municipalityName,
           departureTimeZone: flight.departure?.airport?.timeZone,
+          departureLatitude: airportLatitude(flight.departure?.airport?.location),
+          departureLongitude: airportLongitude(flight.departure?.airport?.location),
 
           arrivalAirport,
           arrivalAirportCode: flight.arrival?.airport?.iata,
           arrivalCity: flight.arrival?.airport?.municipalityName,
           arrivalTimeZone: flight.arrival?.airport?.timeZone,
+          arrivalLatitude: airportLatitude(flight.arrival?.airport?.location),
+          arrivalLongitude: airportLongitude(flight.arrival?.airport?.location),
 
           scheduledDepartureUtc,
           scheduledDepartureLocal: normalizeAeroDataBoxLocal(flight.departure?.scheduledTime?.local),
