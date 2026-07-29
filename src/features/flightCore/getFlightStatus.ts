@@ -58,6 +58,28 @@ function estimateClimbMinutes(targetAltitudeFeet: number): number {
   return Math.round(minutes);
 }
 
+function estimateClimbWindowMinutes(targetAltitudeFeet: number, durationMinutes: number): number {
+  const physicsClimbMinutes = estimateClimbMinutes(targetAltitudeFeet);
+
+  // For short European hops, the passenger-visible climb can take a larger share
+  // of the route than a pure altitude model suggests. Keep this as a calm phase
+  // estimate, not a claim about exact aircraft altitude.
+  const shortRouteWindowMinutes = durationMinutes <= 180
+    ? Math.round(durationMinutes * 0.25)
+    : physicsClimbMinutes;
+  const maxWindowMinutes = durationMinutes <= 75
+    ? Math.round(durationMinutes * 0.30)
+    : durationMinutes <= 180
+      ? Math.min(35, Math.round(durationMinutes * 0.25))
+      : 30;
+
+  return clamp(
+    Math.max(physicsClimbMinutes, shortRouteWindowMinutes),
+    TAKEOFF_MINUTES,
+    Math.max(TAKEOFF_MINUTES, maxWindowMinutes)
+  );
+}
+
 function estimateDescentMinutes(targetAltitudeFeet: number, durationMinutes: number): number {
   const altitudeBasedMinutes = Math.round(targetAltitudeFeet / 1500 + 5);
   const durationBasedCap = Math.max(12, Math.round(durationMinutes * 0.35));
@@ -139,7 +161,7 @@ export function getFlightStatus(
     remainingMinutes
   );
   const targetAltitudeFeet = estimateTargetAltitudeFeet(resolvedDurationMinutes);
-  const climbMinutes = estimateClimbMinutes(targetAltitudeFeet);
+  const climbWindowMinutes = estimateClimbWindowMinutes(targetAltitudeFeet, resolvedDurationMinutes);
   const descentMinutes = estimateDescentMinutes(targetAltitudeFeet, resolvedDurationMinutes);
   const approachMinutes = estimateApproachMinutes(resolvedDurationMinutes);
   const liveAltitudePhase = resolveLiveAltitudePhase({
@@ -154,11 +176,10 @@ export function getFlightStatus(
   if (liveAltitudePhase) return liveAltitudePhase;
 
   // Fallback when live altitude is unavailable: calm timeline model.
+  // Do not call early short-route progress "Cruise" too aggressively. It can
+  // make the UI disagree with the saved journey percentage and with airport/API
+  // context immediately after departure.
   if ((elapsedMinutes ?? 0) < TAKEOFF_MINUTES) {
-    return "early_flight";
-  }
-
-  if (elapsedMinutes !== undefined && elapsedMinutes < climbMinutes) {
     return "early_flight";
   }
 
@@ -168,6 +189,10 @@ export function getFlightStatus(
 
   if (remainingMinutes !== undefined && remainingMinutes <= descentMinutes) {
     return "late_flight";
+  }
+
+  if (elapsedMinutes !== undefined && elapsedMinutes < climbWindowMinutes) {
+    return "early_flight";
   }
 
   return "cruise";
