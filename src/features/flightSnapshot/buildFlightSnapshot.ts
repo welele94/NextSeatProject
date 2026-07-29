@@ -138,7 +138,9 @@ function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgre
     false,
     flight.schedule.estimatedDurationMinutes,
     progress.elapsedMinutes,
-    progress.remainingMinutes
+    progress.remainingMinutes,
+    flight.operations?.liveAltitudeFeet,
+    flight.operations?.liveVerticalSpeedFeetPerMinute
   );
 }
 
