@@ -10,6 +10,9 @@ const TAKEOFF_MINUTES = 5;
 const APPROACH_MAX_MINUTES = 10;
 const LOW_ALTITUDE_FEET = 10000;
 const APPROACH_ALTITUDE_FEET = 5000;
+const HIGH_ALTITUDE_CRUISE_MIN_FEET = 15000;
+const HIGH_ALTITUDE_CRUISE_MAX_FEET = 30000;
+const CRUISE_ALTITUDE_RATIO = 0.85;
 const CLIMBING_VSI_FPM = 300;
 const DESCENDING_VSI_FPM = -300;
 
@@ -60,21 +63,14 @@ function estimateClimbMinutes(targetAltitudeFeet: number): number {
 
 function estimateClimbWindowMinutes(targetAltitudeFeet: number, durationMinutes: number): number {
   const physicsClimbMinutes = estimateClimbMinutes(targetAltitudeFeet);
+  const bufferMinutes = durationMinutes <= 75 ? 3 : durationMinutes <= 180 ? 5 : 6;
+  const maxWindowMinutes = durationMinutes <= 75 ? 20 : durationMinutes <= 180 ? 28 : 32;
 
-  // For short European hops, the passenger-visible climb can take a larger share
-  // of the route than a pure altitude model suggests. Keep this as a calm phase
-  // estimate, not a claim about exact aircraft altitude.
-  const shortRouteWindowMinutes = durationMinutes <= 180
-    ? Math.round(durationMinutes * 0.25)
-    : physicsClimbMinutes;
-  const maxWindowMinutes = durationMinutes <= 75
-    ? Math.round(durationMinutes * 0.30)
-    : durationMinutes <= 180
-      ? Math.min(35, Math.round(durationMinutes * 0.25))
-      : 30;
-
+  // Keep the fallback calm, but do not stretch climb to a fixed percentage of the
+  // flight. That made medium routes stay in "Climb" after the aircraft had already
+  // reached normal cruise altitude.
   return clamp(
-    Math.max(physicsClimbMinutes, shortRouteWindowMinutes),
+    physicsClimbMinutes + bufferMinutes,
     TAKEOFF_MINUTES,
     Math.max(TAKEOFF_MINUTES, maxWindowMinutes)
   );
@@ -90,9 +86,18 @@ function estimateApproachMinutes(durationMinutes: number): number {
   return clamp(Math.round(durationMinutes * 0.12), 6, APPROACH_MAX_MINUTES);
 }
 
+function highAltitudeCruiseThresholdFeet(targetAltitudeFeet: number): number {
+  return clamp(
+    Math.round(targetAltitudeFeet * CRUISE_ALTITUDE_RATIO),
+    HIGH_ALTITUDE_CRUISE_MIN_FEET,
+    HIGH_ALTITUDE_CRUISE_MAX_FEET
+  );
+}
+
 function resolveLiveAltitudePhase({
   altitudeFeet,
   verticalSpeedFeetPerMinute,
+  targetAltitudeFeet,
   elapsedMinutes,
   remainingMinutes,
   approachMinutes,
@@ -100,6 +105,7 @@ function resolveLiveAltitudePhase({
 }: {
   altitudeFeet?: number;
   verticalSpeedFeetPerMinute?: number;
+  targetAltitudeFeet: number;
   elapsedMinutes?: number;
   remainingMinutes?: number;
   approachMinutes: number;
@@ -132,6 +138,21 @@ function resolveLiveAltitudePhase({
     }
 
     return "early_flight";
+  }
+
+  // High altitude is a strong signal that the flight has moved beyond the early
+  // climb. Even if the aircraft is still climbing slightly, a passenger-facing
+  // guidance app should treat this as cruise unless arrival is already near.
+  if (altitudeFeet >= highAltitudeCruiseThresholdFeet(targetAltitudeFeet)) {
+    if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes) {
+      return "arrival_window";
+    }
+
+    if (isDescending && remainingMinutes !== undefined && remainingMinutes <= descentMinutes + 10) {
+      return "late_flight";
+    }
+
+    return "cruise";
   }
 
   return undefined;
@@ -167,6 +188,7 @@ export function getFlightStatus(
   const liveAltitudePhase = resolveLiveAltitudePhase({
     altitudeFeet: liveAltitudeFeet,
     verticalSpeedFeetPerMinute: liveVerticalSpeedFeetPerMinute,
+    targetAltitudeFeet,
     elapsedMinutes,
     remainingMinutes,
     approachMinutes,
@@ -176,9 +198,6 @@ export function getFlightStatus(
   if (liveAltitudePhase) return liveAltitudePhase;
 
   // Fallback when live altitude is unavailable: calm timeline model.
-  // Do not call early short-route progress "Cruise" too aggressively. It can
-  // make the UI disagree with the saved journey percentage and with airport/API
-  // context immediately after departure.
   if ((elapsedMinutes ?? 0) < TAKEOFF_MINUTES) {
     return "early_flight";
   }
