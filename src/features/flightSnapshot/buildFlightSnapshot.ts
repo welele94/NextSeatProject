@@ -114,15 +114,24 @@ function resolveArrivalMs(flight: Flight): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+function providerStatusIsActive(flight: Flight): boolean {
+  return ["scheduled", "boarding", "en_route", "delayed", "diverted", "unknown"].includes(
+    flight.operations?.providerStatus ?? "unknown"
+  );
+}
+
 function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgress): FlightStatus {
   const arrivalMs = resolveArrivalMs(flight);
   const arrivalPassed = arrivalMs !== undefined && currentTime.getTime() >= arrivalMs;
+  const hasRevisedArrival = Boolean(flight.schedule.revisedArrival);
   const providerLanded = flight.operations?.providerStatus === "landed";
+  const activeProviderStatus = providerStatusIsActive(flight);
   const providerLandedIsPlausible =
     providerLanded &&
     (arrivalMs === undefined || currentTime.getTime() >= arrivalMs - PROVIDER_LANDED_TOLERANCE_MS);
+  const timelineSaysArrived = arrivalPassed && (hasRevisedArrival || !activeProviderStatus);
 
-  if (arrivalPassed || providerLandedIsPlausible) return "completed";
+  if (timelineSaysArrived || providerLandedIsPlausible) return "completed";
 
   return getFlightStatus(
     progress.progressPercent,
