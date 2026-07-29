@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import type { DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -58,6 +59,10 @@ function splitRoute(routeLabel: string) {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function asPercent(value: number): DimensionValue {
+  return `${clamp(value, 0, 100)}%` as DimensionValue;
 }
 
 function isRealCoordinate(coordinates: Coordinates): boolean {
@@ -271,14 +276,14 @@ function PhaseProgressCard({ percent, activeIndex }: {
     <View style={styles.card}>
       <View style={styles.phaseTrack}> 
         <View style={styles.phaseLine} />
-        <View style={[styles.phaseLineFill, { width: `${Math.min(percent, 100)}%` }]} />
+        <View style={[styles.phaseLineFill, { width: asPercent(percent) }]} />
         {journeyStages.map((stage, index) => {
           const isCompleted = index < activeIndex;
           const isCurrent = index === activeIndex;
           const isArrived = percent >= 100;
           const activeColor = isArrived ? colors.successGreen : colors.skyBlueStrong;
           return (
-            <View key={stage.label} style={[styles.stageItem, { left: `${stage.threshold}%` }]}> 
+            <View key={stage.label} style={[styles.stageItem, { left: asPercent(stage.threshold) }]}> 
               <View
                 style={[
                   styles.stageIcon,
