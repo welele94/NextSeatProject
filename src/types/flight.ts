@@ -29,6 +29,7 @@ export type FlightOperations = {
   departureTerminal?: string;
   departureGate?: string;
   baggageBelt?: string;
+  preparedAt?: string;
 };
 
 export type Flight = {
