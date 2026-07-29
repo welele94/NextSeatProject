@@ -28,11 +28,15 @@ export type ExternalFlightSeed = {
   departureAirportCode?: string;
   departureCity?: string;
   departureTimeZone?: string;
+  departureLatitude?: number;
+  departureLongitude?: number;
 
   arrivalAirport: string;
   arrivalAirportCode?: string;
   arrivalCity?: string;
   arrivalTimeZone?: string;
+  arrivalLatitude?: number;
+  arrivalLongitude?: number;
 
   scheduledDepartureUtc?: string;
   scheduledDepartureLocal?: string;
