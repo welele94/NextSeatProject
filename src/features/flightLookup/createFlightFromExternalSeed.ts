@@ -1,5 +1,6 @@
 import { ExternalFlightSeed } from "./types";
 import { Flight } from "@/types/flight";
+import { Coordinates } from "@/types/route";
 
 function validIso(value?: string): string | undefined {
   if (!value || Number.isNaN(Date.parse(value))) return undefined;
@@ -71,6 +72,51 @@ function resolveUpdatedArrival({
   return revisedArrival;
 }
 
+function hasValidCoordinate(latitude?: number, longitude?: number): latitude is number {
+  return (
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
+function coordinatesFromSeed(seed: ExternalFlightSeed, side: "departure" | "arrival"): Coordinates {
+  const latitude = side === "departure" ? seed.departureLatitude : seed.arrivalLatitude;
+  const longitude = side === "departure" ? seed.departureLongitude : seed.arrivalLongitude;
+
+  if (hasValidCoordinate(latitude, longitude)) {
+    return { latitude, longitude };
+  }
+
+  return { latitude: 0, longitude: 0 };
+}
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function distanceKm(origin: Coordinates, destination: Coordinates): number | undefined {
+  const hasOrigin = origin.latitude !== 0 || origin.longitude !== 0;
+  const hasDestination = destination.latitude !== 0 || destination.longitude !== 0;
+  if (!hasOrigin || !hasDestination) return undefined;
+
+  const earthRadiusKm = 6371;
+  const originLat = toRadians(origin.latitude);
+  const destinationLat = toRadians(destination.latitude);
+  const deltaLat = toRadians(destination.latitude - origin.latitude);
+  const deltaLon = toRadians(destination.longitude - origin.longitude);
+  const a =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(originLat) * Math.cos(destinationLat) * Math.sin(deltaLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(earthRadiusKm * c);
+}
+
 export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
   const durationMinutes = safeDuration(seed);
   const scheduledDeparture =
@@ -91,7 +137,9 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
   const destinationCode = seed.arrivalAirportCode ?? seed.arrivalAirport;
   const originCity = seed.departureCity ?? seed.departureAirport;
   const destinationCity = seed.arrivalCity ?? seed.arrivalAirport;
-  const estimatedDistanceKm = Math.max(Math.round(durationMinutes * 12), 1);
+  const originCoordinates = coordinatesFromSeed(seed, "departure");
+  const destinationCoordinates = coordinatesFromSeed(seed, "arrival");
+  const estimatedDistanceKm = distanceKm(originCoordinates, destinationCoordinates) ?? Math.max(Math.round(durationMinutes * 12), 1);
 
   return {
     id: `external-${seed.flightNumber}-${timelineDeparture.slice(0, 10)}`,
@@ -103,14 +151,14 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       name: seed.departureAirport,
       city: originCity,
       country: "",
-      coordinates: { latitude: 0, longitude: 0 }
+      coordinates: originCoordinates
     },
     destination: {
       code: destinationCode,
       name: seed.arrivalAirport,
       city: destinationCity,
       country: "",
-      coordinates: { latitude: 0, longitude: 0 }
+      coordinates: destinationCoordinates
     },
     schedule: {
       scheduledDeparture,
@@ -135,13 +183,13 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       {
         id: "origin",
         label: originCity,
-        coordinates: { latitude: 0, longitude: 0 },
+        coordinates: originCoordinates,
         distanceFromOriginKm: 0
       },
       {
         id: "destination",
         label: destinationCity,
-        coordinates: { latitude: 0, longitude: 0 },
+        coordinates: destinationCoordinates,
         distanceFromOriginKm: estimatedDistanceKm
       }
     ],
