@@ -30,6 +30,7 @@ export type FlightOperations = {
   departureGate?: string;
   baggageBelt?: string;
   preparedAt?: string;
+  providerFetchedAt?: string;
 
   // Internal guidance signals only. These improve phase selection but should not
   // turn Next Seat into a flight-tracking UI.
