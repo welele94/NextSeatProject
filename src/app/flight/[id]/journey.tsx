@@ -1,8 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  EUROPE_ROUTE_MAP,
+  WORLD_ROUTE_MAP,
+  type OfflineMapBounds,
+  type OfflineRouteMapAsset
+} from "@/assets/offlineRouteMaps";
 import { GuidanceModeBadge } from "@/components/flight/Sprint10Cards";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
@@ -17,10 +23,9 @@ type JourneyStage = {
   threshold: number;
 };
 
-type ProjectedPoint = {
+type MapPoint = {
   x: number;
   y: number;
-  visible: boolean;
 };
 
 type RouteSegmentData = {
@@ -31,10 +36,9 @@ type RouteSegmentData = {
   angle: number;
 };
 
-const GLOBE_WIDTH = 520;
-const GLOBE_HEIGHT = 330;
-const GLOBE_RADIUS = 150;
-const ROUTE_SAMPLE_COUNT = 36;
+const MAP_WIDTH = 520;
+const MAP_HEIGHT = 320;
+const ROUTE_SAMPLE_COUNT = 32;
 
 const journeyStages: JourneyStage[] = [
   { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
@@ -56,127 +60,80 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function toRadians(value: number): number {
-  return (value * Math.PI) / 180;
-}
-
-function toDegrees(value: number): number {
-  return (value * 180) / Math.PI;
-}
-
 function isRealCoordinate(coordinates: Coordinates): boolean {
   return coordinates.latitude !== 0 || coordinates.longitude !== 0;
 }
 
-function hasRealRoute(origin: Coordinates, destination: Coordinates): boolean {
-  return isRealCoordinate(origin) && isRealCoordinate(destination);
-}
-
-function normalizeLongitude(longitude: number): number {
-  if (longitude > 180) return longitude - 360;
-  if (longitude < -180) return longitude + 360;
-  return longitude;
-}
-
-function routeCenter(origin: Coordinates, destination: Coordinates): Coordinates {
-  let destinationLongitude = destination.longitude;
-  const deltaLongitude = Math.abs(origin.longitude - destination.longitude);
-
-  if (deltaLongitude > 180) {
-    destinationLongitude += destinationLongitude > origin.longitude ? -360 : 360;
-  }
-
-  return {
-    latitude: clamp((origin.latitude + destination.latitude) / 2, -60, 75),
-    longitude: normalizeLongitude((origin.longitude + destinationLongitude) / 2)
-  };
-}
-
-function projectOrthographic(coordinates: Coordinates, center: Coordinates): ProjectedPoint {
-  const latitude = toRadians(coordinates.latitude);
-  const longitude = toRadians(coordinates.longitude);
-  const centerLatitude = toRadians(center.latitude);
-  const centerLongitude = toRadians(center.longitude);
-  const deltaLongitude = longitude - centerLongitude;
-  const cosDistance =
-    Math.sin(centerLatitude) * Math.sin(latitude) +
-    Math.cos(centerLatitude) * Math.cos(latitude) * Math.cos(deltaLongitude);
-
-  return {
-    x: GLOBE_WIDTH / 2 + GLOBE_RADIUS * Math.cos(latitude) * Math.sin(deltaLongitude),
-    y:
-      GLOBE_HEIGHT / 2 -
-      GLOBE_RADIUS *
-        (Math.cos(centerLatitude) * Math.sin(latitude) -
-          Math.sin(centerLatitude) * Math.cos(latitude) * Math.cos(deltaLongitude)),
-    visible: cosDistance > -0.12
-  };
-}
-
-function coordinatesToVector(coordinates: Coordinates): [number, number, number] {
-  const latitude = toRadians(coordinates.latitude);
-  const longitude = toRadians(coordinates.longitude);
-  return [
-    Math.cos(latitude) * Math.cos(longitude),
-    Math.cos(latitude) * Math.sin(longitude),
-    Math.sin(latitude)
-  ];
-}
-
-function vectorToCoordinates(vector: [number, number, number]): Coordinates {
-  const [x, y, z] = vector;
-  const hypotenuse = Math.sqrt(x * x + y * y);
-  return {
-    latitude: toDegrees(Math.atan2(z, hypotenuse)),
-    longitude: normalizeLongitude(toDegrees(Math.atan2(y, x)))
-  };
-}
-
-function interpolateGreatCircle(origin: Coordinates, destination: Coordinates, progress: number): Coordinates {
-  const originVector = coordinatesToVector(origin);
-  const destinationVector = coordinatesToVector(destination);
-  const dot = clamp(
-    originVector[0] * destinationVector[0] +
-      originVector[1] * destinationVector[1] +
-      originVector[2] * destinationVector[2],
-    -1,
-    1
+function isInsideBounds(coordinates: Coordinates, bounds: OfflineMapBounds): boolean {
+  return (
+    coordinates.longitude >= bounds.minLongitude &&
+    coordinates.longitude <= bounds.maxLongitude &&
+    coordinates.latitude >= bounds.minLatitude &&
+    coordinates.latitude <= bounds.maxLatitude
   );
-  const omega = Math.acos(dot);
-  const sinOmega = Math.sin(omega);
-
-  if (sinOmega < 0.0001) {
-    return {
-      latitude: origin.latitude + (destination.latitude - origin.latitude) * progress,
-      longitude: origin.longitude + (destination.longitude - origin.longitude) * progress
-    };
-  }
-
-  const originWeight = Math.sin((1 - progress) * omega) / sinOmega;
-  const destinationWeight = Math.sin(progress * omega) / sinOmega;
-
-  return vectorToCoordinates([
-    originWeight * originVector[0] + destinationWeight * destinationVector[0],
-    originWeight * originVector[1] + destinationWeight * destinationVector[1],
-    originWeight * originVector[2] + destinationWeight * destinationVector[2]
-  ]);
 }
 
-function projectedRoute(origin: Coordinates, destination: Coordinates, center: Coordinates): ProjectedPoint[] {
-  return Array.from({ length: ROUTE_SAMPLE_COUNT }, (_, index) => {
-    const progress = index / (ROUTE_SAMPLE_COUNT - 1);
-    return projectOrthographic(interpolateGreatCircle(origin, destination, progress), center);
-  });
+function chooseMapAsset(origin: Coordinates, destination: Coordinates): OfflineRouteMapAsset {
+  const isEuropeRoute =
+    isRealCoordinate(origin) &&
+    isRealCoordinate(destination) &&
+    isInsideBounds(origin, EUROPE_ROUTE_MAP.bounds) &&
+    isInsideBounds(destination, EUROPE_ROUTE_MAP.bounds);
+
+  return isEuropeRoute ? EUROPE_ROUTE_MAP : WORLD_ROUTE_MAP;
 }
 
-function routeSegments(points: ProjectedPoint[]): RouteSegmentData[] {
+function projectToMap(coordinates: Coordinates, bounds: OfflineMapBounds): MapPoint {
+  const longitude = clamp(coordinates.longitude, bounds.minLongitude, bounds.maxLongitude);
+  const latitude = clamp(coordinates.latitude, bounds.minLatitude, bounds.maxLatitude);
+
+  return {
+    x: ((longitude - bounds.minLongitude) / (bounds.maxLongitude - bounds.minLongitude)) * MAP_WIDTH,
+    y: ((bounds.maxLatitude - latitude) / (bounds.maxLatitude - bounds.minLatitude)) * MAP_HEIGHT
+  };
+}
+
+function fallbackPoint(x: number, y: number): MapPoint {
+  return { x: MAP_WIDTH * x, y: MAP_HEIGHT * y };
+}
+
+function routeControlPoint(origin: MapPoint, destination: MapPoint): MapPoint {
+  const midpoint = {
+    x: (origin.x + destination.x) / 2,
+    y: (origin.y + destination.y) / 2
+  };
+  const deltaX = destination.x - origin.x;
+  const deltaY = destination.y - origin.y;
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+  const curve = clamp(distance * 0.18, 24, 72);
+
+  return {
+    x: midpoint.x,
+    y: midpoint.y - curve
+  };
+}
+
+function bezierPoint(origin: MapPoint, control: MapPoint, destination: MapPoint, progress: number): MapPoint {
+  const inverse = 1 - progress;
+  return {
+    x: inverse * inverse * origin.x + 2 * inverse * progress * control.x + progress * progress * destination.x,
+    y: inverse * inverse * origin.y + 2 * inverse * progress * control.y + progress * progress * destination.y
+  };
+}
+
+function projectedRoute(origin: MapPoint, destination: MapPoint): MapPoint[] {
+  const control = routeControlPoint(origin, destination);
+  return Array.from({ length: ROUTE_SAMPLE_COUNT }, (_, index) =>
+    bezierPoint(origin, control, destination, index / (ROUTE_SAMPLE_COUNT - 1))
+  );
+}
+
+function routeSegments(points: MapPoint[]): RouteSegmentData[] {
   const segments: RouteSegmentData[] = [];
 
   for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
     const current = points[index];
-    if (!previous.visible || !current.visible) continue;
-
     const deltaX = current.x - previous.x;
     const deltaY = current.y - previous.y;
     const width = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -240,7 +197,7 @@ function RouteSegment({ segment }: { segment: RouteSegmentData }) {
   );
 }
 
-function LocationMarker({ point, label }: { point: ProjectedPoint; label: string }) {
+function LocationMarker({ point, label }: { point: MapPoint; label: string }) {
   return (
     <View style={[styles.locationMarker, { left: point.x, top: point.y }]}> 
       <View style={styles.markerDot} />
@@ -249,7 +206,7 @@ function LocationMarker({ point, label }: { point: ProjectedPoint; label: string
   );
 }
 
-function GlobeRoute({
+function OfflineRouteMap({
   origin,
   destination,
   originCode,
@@ -266,53 +223,40 @@ function GlobeRoute({
   destinationCoordinates: Coordinates;
   percent: number;
 }) {
-  const hasCoordinates = hasRealRoute(originCoordinates, destinationCoordinates);
-  const center = hasCoordinates
-    ? routeCenter(originCoordinates, destinationCoordinates)
-    : { latitude: 39, longitude: -3 };
-  const fallbackOrigin = { x: GLOBE_WIDTH * 0.28, y: GLOBE_HEIGHT * 0.52, visible: true };
-  const fallbackDestination = { x: GLOBE_WIDTH * 0.72, y: GLOBE_HEIGHT * 0.52, visible: true };
-  const routePoints = hasCoordinates
-    ? projectedRoute(originCoordinates, destinationCoordinates, center)
-    : [fallbackOrigin, fallbackDestination];
-  const segments = hasCoordinates ? routeSegments(routePoints) : [];
-  const originPoint = hasCoordinates ? routePoints[0] : fallbackOrigin;
-  const destinationPoint = hasCoordinates ? routePoints[routePoints.length - 1] : fallbackDestination;
+  const mapAsset = chooseMapAsset(originCoordinates, destinationCoordinates);
+  const hasCoordinates = isRealCoordinate(originCoordinates) && isRealCoordinate(destinationCoordinates);
+  const originPoint = hasCoordinates
+    ? projectToMap(originCoordinates, mapAsset.bounds)
+    : fallbackPoint(0.28, 0.56);
+  const destinationPoint = hasCoordinates
+    ? projectToMap(destinationCoordinates, mapAsset.bounds)
+    : fallbackPoint(0.72, 0.42);
+  const routePoints = projectedRoute(originPoint, destinationPoint);
+  const segments = routeSegments(routePoints);
   const planePoint = routePoints[Math.round((routePoints.length - 1) * (percent / 100))] ?? originPoint;
 
   return (
-    <View style={styles.globeCard}>
-      <View style={styles.globeHeader}>
+    <View style={styles.mapCard}>
+      <View style={styles.mapHeader}>
         <Text style={styles.screenTitle}>Current journey</Text>
         <Text style={styles.screenRoute}>{origin} → {destination}</Text>
         <View style={styles.flightBadge}>
-          <Ionicons name="earth-outline" size={15} color={colors.skyBlueStrong} />
+          <Ionicons name="map-outline" size={15} color={colors.skyBlueStrong} />
           <Text style={styles.flightBadgeText}>Planned route view</Text>
         </View>
       </View>
 
-      <View style={styles.globe}> 
-        <View style={styles.globeDisc} />
-        <View style={styles.graticuleVertical} />
-        <View style={styles.graticuleHorizontal} />
-        <View style={[styles.landBlob, styles.landNorth]} />
-        <View style={[styles.landBlob, styles.landWest]} />
-        <View style={[styles.landBlob, styles.landEast]} />
-        <View style={[styles.landBlob, styles.landSouth]} />
-        <View style={styles.globeCloudOne} />
-        <View style={styles.globeCloudTwo} />
-
-        {segments.length > 0 ? (
-          segments.map((segment) => <RouteSegment key={segment.id} segment={segment} />)
-        ) : (
-          <View style={styles.fallbackRouteArc} />
-        )}
-
+      <View style={styles.mapFrame}> 
+        <Image source={{ uri: mapAsset.uri }} resizeMode="cover" style={styles.mapImage} />
+        <View pointerEvents="none" style={styles.mapOverlay} />
+        {segments.map((segment) => <RouteSegment key={segment.id} segment={segment} />)}
         <LocationMarker point={originPoint} label={originCode || origin} />
         <LocationMarker point={destinationPoint} label={destinationCode || destination} />
-
-        <View style={[styles.globePlane, { left: planePoint.x, top: planePoint.y }]}> 
-          <Ionicons name="airplane" size={28} color={colors.white} />
+        <View style={[styles.mapPlane, { left: planePoint.x, top: planePoint.y }]}> 
+          <Ionicons name="airplane" size={25} color={colors.white} />
+        </View>
+        <View style={styles.mapCaptionPill}>
+          <Text style={styles.mapCaptionText}>Offline map · not live tracking</Text>
         </View>
       </View>
     </View>
@@ -403,12 +347,9 @@ export default function JourneyTab() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <SkyBackground />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
-        <GlobeRoute
+        <OfflineRouteMap
           origin={origin}
           destination={destination}
           originCode={snapshot.flightSummary.originCode}
@@ -420,8 +361,8 @@ export default function JourneyTab() {
         <PhaseProgressCard percent={percent} activeIndex={activeIndex} />
         <InfoCard
           icon="map-outline"
-          title="Planned route"
-          body={`This view places ${snapshot.flightSummary.originCode} and ${snapshot.flightSummary.destinationCode} using the airport coordinates saved with your flight.`}
+          title="Offline route map"
+          body={`This map is saved inside Next Seat. ${snapshot.flightSummary.originCode} and ${snapshot.flightSummary.destinationCode} are placed using the airport coordinates saved with your flight.`}
         />
         <InfoCard
           icon="analytics-outline"
@@ -485,12 +426,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: 132
   },
-  globeCard: {
+  mapCard: {
     alignItems: "center",
     gap: spacing.lg,
     paddingTop: spacing.lg
   },
-  globeHeader: {
+  mapHeader: {
     alignItems: "center",
     gap: spacing.sm
   },
@@ -511,7 +452,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(255, 255, 255, 0.86)",
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
     borderWidth: 1,
     borderColor: "rgba(18, 102, 227, 0.14)"
   },
@@ -520,79 +461,54 @@ const styles = StyleSheet.create({
     color: colors.skyBlueStrong,
     fontWeight: "800"
   },
-  globe: {
-    width: GLOBE_WIDTH,
-    height: GLOBE_HEIGHT,
-    borderRadius: 260,
+  mapFrame: {
+    width: MAP_WIDTH,
+    height: MAP_HEIGHT,
+    borderRadius: 44,
     overflow: "hidden",
     position: "relative",
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.75)",
+    borderColor: "rgba(255, 255, 255, 0.78)",
+    backgroundColor: "#D9EEFF",
     shadowColor: colors.primaryBlue,
     shadowOpacity: 0.2,
     shadowRadius: 26,
     shadowOffset: { width: 0, height: 14 },
     elevation: 7
   },
-  globeDisc: {
+  mapImage: {
     position: "absolute",
-    inset: 0,
-    backgroundColor: "#BFE0FF"
-  },
-  graticuleVertical: {
-    position: "absolute",
-    left: GLOBE_WIDTH / 2 - 1,
     top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.18)"
-  },
-  graticuleHorizontal: {
-    position: "absolute",
     left: 0,
     right: 0,
-    top: GLOBE_HEIGHT / 2 - 1,
-    height: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.18)"
+    bottom: 0,
+    width: "100%",
+    height: "100%"
   },
-  landBlob: {
+  mapOverlay: {
     position: "absolute",
-    backgroundColor: "rgba(245, 250, 255, 0.82)",
-    borderRadius: radius.pill
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.06)"
   },
-  landNorth: { top: 40, left: 190, width: 190, height: 58, transform: [{ rotate: "8deg" }] },
-  landWest: { top: 116, left: 90, width: 170, height: 78, transform: [{ rotate: "-12deg" }] },
-  landEast: { top: 116, right: 82, width: 180, height: 86, transform: [{ rotate: "10deg" }] },
-  landSouth: { bottom: 28, left: 164, width: 220, height: 72, transform: [{ rotate: "3deg" }] },
-  globeCloudOne: { position: "absolute", top: 78, left: 50, width: 180, height: 34, borderRadius: radius.pill, backgroundColor: "rgba(255, 255, 255, 0.42)" },
-  globeCloudTwo: { position: "absolute", top: 210, right: 40, width: 200, height: 38, borderRadius: radius.pill, backgroundColor: "rgba(255, 255, 255, 0.36)" },
   routeSegment: {
     position: "absolute",
     height: 4,
     borderRadius: radius.pill,
     backgroundColor: colors.skyBlueStrong,
     shadowColor: colors.skyBlueStrong,
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
+    shadowOpacity: 0.32,
+    shadowRadius: 7,
     shadowOffset: { width: 0, height: 2 }
   },
-  fallbackRouteArc: {
+  mapPlane: {
     position: "absolute",
-    left: GLOBE_WIDTH * 0.26,
-    right: GLOBE_WIDTH * 0.26,
-    top: GLOBE_HEIGHT * 0.46,
-    height: 80,
-    borderTopWidth: 4,
-    borderColor: colors.skyBlueStrong,
-    borderRadius: 180,
-    transform: [{ rotate: "2deg" }]
-  },
-  globePlane: {
-    position: "absolute",
-    width: 44,
-    height: 44,
-    marginLeft: -22,
-    marginTop: -22,
+    width: 42,
+    height: 42,
+    marginLeft: -21,
+    marginTop: -21,
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
@@ -625,11 +541,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 15,
     fontWeight: "800",
-    backgroundColor: "rgba(255, 255, 255, 0.86)",
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
     borderRadius: radius.sm,
     paddingHorizontal: 6,
     paddingVertical: 2,
     overflow: "hidden"
+  },
+  mapCaptionPill: {
+    position: "absolute",
+    left: spacing.lg,
+    bottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(13, 59, 140, 0.10)"
+  },
+  mapCaptionText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "700"
   },
   card: {
     gap: spacing.lg,
@@ -736,13 +670,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#EAF3FF"
   },
-  infoProgressText: { ...typography.section, color: colors.skyBlueStrong, fontWeight: "900" },
+  infoProgressText: {
+    ...typography.section,
+    color: colors.skyBlueStrong,
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: "800"
+  },
   infoText: { flex: 1, gap: spacing.xs },
   infoTitle: { ...typography.section, color: colors.textPrimary },
   infoBody: { ...typography.caption, color: colors.textPrimary },
-  infoChevron: { color: colors.primaryBlue, fontSize: 32, lineHeight: 36, fontWeight: "600" },
-  timeNote: { ...typography.caption, color: colors.textPrimary, textAlign: "center" },
-  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.sm },
+  infoChevron: { color: colors.primaryBlue, fontSize: 34, lineHeight: 38, fontWeight: "600" },
+  timeNote: { ...typography.caption, color: colors.textPrimary, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
   emptyTitle: { ...typography.title, color: colors.textPrimary, textAlign: "center" },
   emptyBody: { ...typography.body, color: colors.textPrimary, textAlign: "center" }
 });
