@@ -19,6 +19,28 @@ type UseFlightSnapshotResult = {
   endJourney: () => Promise<void>;
 };
 
+function parseTime(value?: string): number | undefined {
+  if (!value) return undefined;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function getAutoEndAt(flight: Flight): number | undefined {
+  const arrival = flight.schedule.revisedArrival ?? flight.schedule.scheduledArrival;
+  const arrivalMs = parseTime(arrival);
+  if (!arrivalMs) return undefined;
+
+  const arrivalWindowEnd = arrivalMs + AFTER_FLIGHT_WINDOW_MS;
+  const preparedAtMs = parseTime(flight.operations?.preparedAt);
+
+  if (!preparedAtMs) return arrivalWindowEnd;
+
+  // Some flights can be looked up after they have already landed. Without this
+  // grace window, confirming the flight would immediately auto-end and send the
+  // user back to Add Flight, even though the API returned valid data.
+  return Math.max(arrivalWindowEnd, preparedAtMs + AFTER_FLIGHT_WINDOW_MS);
+}
+
 export function useFlightSnapshot(): UseFlightSnapshotResult {
   const { id } = useGlobalSearchParams<{ id: string }>();
   const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
@@ -62,11 +84,10 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
 
   useEffect(() => {
     if (!flight || !id) return;
-    const arrival = flight.schedule.revisedArrival ?? flight.schedule.scheduledArrival;
-    const arrivalMs = Date.parse(arrival);
-    if (Number.isNaN(arrivalMs)) return;
+    const autoEndAt = getAutoEndAt(flight);
+    if (!autoEndAt) return;
 
-    if (currentTime.getTime() >= arrivalMs + AFTER_FLIGHT_WINDOW_MS) {
+    if (currentTime.getTime() >= autoEndAt) {
       void endJourney();
     }
   }, [currentTime, endJourney, flight, id]);
