@@ -36,6 +36,9 @@ type NormalizableFlightRecord = {
 
   status?: unknown;
   durationMinutes?: unknown;
+  liveAltitudeFeet?: unknown;
+  liveVerticalSpeedFeetPerMinute?: unknown;
+  livePositionReportedAtUtc?: unknown;
 };
 
 const allowedStatuses: ExternalFlightStatus[] = [
@@ -85,6 +88,12 @@ function optionalDuration(value: unknown): number | undefined {
     : undefined;
 }
 
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
 export function normalizeExternalFlightResponse(
   providerResponse: NormalizableFlightRecord,
   provider: FlightLookupProviderId,
@@ -124,6 +133,9 @@ export function normalizeExternalFlightResponse(
 
     status: normalizeStatus(providerResponse.status),
     durationMinutes: optionalDuration(providerResponse.durationMinutes),
+    liveAltitudeFeet: optionalNumber(providerResponse.liveAltitudeFeet),
+    liveVerticalSpeedFeetPerMinute: optionalNumber(providerResponse.liveVerticalSpeedFeetPerMinute),
+    livePositionReportedAtUtc: optionalIsoDate(providerResponse.livePositionReportedAtUtc),
     provider,
     fetchedAt: new Date(fetchedAt).toISOString()
   };
