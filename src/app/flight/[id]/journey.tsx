@@ -37,8 +37,8 @@ type RouteSegmentData = {
   angle: number;
 };
 
-const MAP_WIDTH = 520;
-const MAP_HEIGHT = 320;
+const MAP_WIDTH = 360;
+const MAP_HEIGHT = 258;
 const ROUTE_SAMPLE_COUNT = 32;
 
 const journeyStages: JourneyStage[] = [
@@ -110,7 +110,7 @@ function routeControlPoint(origin: MapPoint, destination: MapPoint): MapPoint {
   const deltaX = destination.x - origin.x;
   const deltaY = destination.y - origin.y;
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-  const curve = clamp(distance * 0.18, 24, 72);
+  const curve = clamp(distance * 0.18, 22, 62);
 
   return {
     x: midpoint.x,
@@ -173,6 +173,15 @@ function getActiveStageIndex(phaseLabel: string, percent: number): number {
   if (percent >= 20) return 2;
   if (percent >= 5) return 1;
   return 0;
+}
+
+function mapWebBackgroundStyle(uri: string) {
+  return {
+    backgroundImage: `url("${uri}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat"
+  } as never;
 }
 
 function SkyBackground() {
@@ -252,6 +261,10 @@ function OfflineRouteMap({
       </View>
 
       <View style={styles.mapFrame}> 
+        <View
+          pointerEvents="none"
+          style={[styles.mapWebImageFallback, mapWebBackgroundStyle(mapAsset.uri)]}
+        />
         <Image source={{ uri: mapAsset.uri }} resizeMode="cover" style={styles.mapImage} />
         <View pointerEvents="none" style={styles.mapOverlay} />
         {segments.map((segment) => <RouteSegment key={segment.id} segment={segment} />)}
@@ -467,9 +480,10 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   mapFrame: {
-    width: MAP_WIDTH,
+    width: "100%",
+    maxWidth: MAP_WIDTH,
     height: MAP_HEIGHT,
-    borderRadius: 44,
+    borderRadius: 34,
     overflow: "hidden",
     position: "relative",
     borderWidth: 2,
@@ -489,6 +503,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "100%",
     height: "100%"
+  },
+  mapWebImageFallback: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0
   },
   mapOverlay: {
     position: "absolute",
@@ -554,8 +575,8 @@ const styles = StyleSheet.create({
   },
   mapCaptionPill: {
     position: "absolute",
-    left: spacing.lg,
-    bottom: spacing.lg,
+    left: spacing.md,
+    bottom: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
