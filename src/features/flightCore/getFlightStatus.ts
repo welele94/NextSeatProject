@@ -8,6 +8,10 @@ export type FlightStatus =
 
 const TAKEOFF_MINUTES = 5;
 const APPROACH_MAX_MINUTES = 10;
+const LOW_ALTITUDE_FEET = 10000;
+const APPROACH_ALTITUDE_FEET = 5000;
+const CLIMBING_VSI_FPM = 300;
+const DESCENDING_VSI_FPM = -300;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -64,13 +68,62 @@ function estimateApproachMinutes(durationMinutes: number): number {
   return clamp(Math.round(durationMinutes * 0.12), 6, APPROACH_MAX_MINUTES);
 }
 
+function resolveLiveAltitudePhase({
+  altitudeFeet,
+  verticalSpeedFeetPerMinute,
+  elapsedMinutes,
+  remainingMinutes,
+  approachMinutes,
+  descentMinutes
+}: {
+  altitudeFeet?: number;
+  verticalSpeedFeetPerMinute?: number;
+  elapsedMinutes?: number;
+  remainingMinutes?: number;
+  approachMinutes: number;
+  descentMinutes: number;
+}): FlightStatus | undefined {
+  if (altitudeFeet === undefined || altitudeFeet < 0) return undefined;
+
+  const isClimbing = verticalSpeedFeetPerMinute !== undefined && verticalSpeedFeetPerMinute >= CLIMBING_VSI_FPM;
+  const isDescending = verticalSpeedFeetPerMinute !== undefined && verticalSpeedFeetPerMinute <= DESCENDING_VSI_FPM;
+  const elapsed = elapsedMinutes ?? 0;
+
+  // When we have live altitude, it should override the calm timeline model.
+  // Below 10,000 ft is not a cruise signal. It is usually either early climb
+  // or final arrival preparation. We still do not expose altitude in the UI.
+  if (altitudeFeet <= APPROACH_ALTITUDE_FEET) {
+    if (isClimbing || elapsed <= TAKEOFF_MINUTES) return "early_flight";
+    return "arrival_window";
+  }
+
+  if (altitudeFeet <= LOW_ALTITUDE_FEET) {
+    if (isClimbing) return "early_flight";
+    if (isDescending) return "late_flight";
+
+    if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes + 5) {
+      return "arrival_window";
+    }
+
+    if (remainingMinutes !== undefined && remainingMinutes <= descentMinutes + 10) {
+      return "late_flight";
+    }
+
+    return "early_flight";
+  }
+
+  return undefined;
+}
+
 export function getFlightStatus(
   progressPercent: number,
   isBeforeDeparture: boolean,
   isAfterArrival: boolean,
   durationMinutes?: number,
   elapsedMinutes?: number,
-  remainingMinutes?: number
+  remainingMinutes?: number,
+  liveAltitudeFeet?: number,
+  liveVerticalSpeedFeetPerMinute?: number
 ): FlightStatus {
   if (isBeforeDeparture) {
     return "before_departure";
@@ -89,10 +142,18 @@ export function getFlightStatus(
   const climbMinutes = estimateClimbMinutes(targetAltitudeFeet);
   const descentMinutes = estimateDescentMinutes(targetAltitudeFeet, resolvedDurationMinutes);
   const approachMinutes = estimateApproachMinutes(resolvedDurationMinutes);
+  const liveAltitudePhase = resolveLiveAltitudePhase({
+    altitudeFeet: liveAltitudeFeet,
+    verticalSpeedFeetPerMinute: liveVerticalSpeedFeetPerMinute,
+    elapsedMinutes,
+    remainingMinutes,
+    approachMinutes,
+    descentMinutes
+  });
 
-  // This is still a calm timeline model, not live aircraft tracking.
-  // We estimate a likely target altitude from route duration, translate that
-  // into a climb window, and use a conservative final descent/approach window.
+  if (liveAltitudePhase) return liveAltitudePhase;
+
+  // Fallback when live altitude is unavailable: calm timeline model.
   if ((elapsedMinutes ?? 0) < TAKEOFF_MINUTES) {
     return "early_flight";
   }
