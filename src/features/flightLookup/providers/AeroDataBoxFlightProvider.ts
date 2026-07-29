@@ -118,8 +118,17 @@ function normalizeAeroDataBoxLocal(value?: string): string | undefined {
   return Number.isNaN(Date.parse(normalized)) ? undefined : normalized;
 }
 
-function preferredEstimate(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
-  return movement?.predictedTime ?? movement?.revisedTime ?? movement?.actualTime;
+function preferredDepartureTime(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
+  // Once a flight has pushed back or departed, actualTime is the least misleading
+  // source for the departure side. revisedTime can remain close to the original
+  // schedule and would make delayed short hops look much longer than they are.
+  return movement?.actualTime ?? movement?.revisedTime ?? movement?.predictedTime;
+}
+
+function preferredArrivalTime(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
+  // For the arrival side, actual is final, predicted is the best in-flight ETA,
+  // and revised is the fallback when the provider has not published a prediction.
+  return movement?.actualTime ?? movement?.predictedTime ?? movement?.revisedTime;
 }
 
 function calculateDurationMinutes(departureUtc?: string, arrivalUtc?: string): number | undefined {
@@ -197,8 +206,8 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
 
     const scheduledDepartureUtc = normalizeAeroDataBoxUtc(flight.departure?.scheduledTime?.utc);
     const scheduledArrivalUtc = normalizeAeroDataBoxUtc(flight.arrival?.scheduledTime?.utc);
-    const estimatedDeparture = preferredEstimate(flight.departure);
-    const estimatedArrival = preferredEstimate(flight.arrival);
+    const estimatedDeparture = preferredDepartureTime(flight.departure);
+    const estimatedArrival = preferredArrivalTime(flight.arrival);
 
     return {
       ok: true,
