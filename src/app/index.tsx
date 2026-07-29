@@ -89,6 +89,11 @@ export default function HomeScreen() {
     [flightNumber]
   );
 
+  const preparedPreview = useMemo(
+    () => (lookupResult ? createFlightFromExternalSeed(lookupResult) : null),
+    [lookupResult]
+  );
+
   const hasFlightNumber = normalizedFlightNumber.length >= 3;
   const foundDepartureInfo = lookupResult ? departureInfo(lookupResult) : undefined;
 
@@ -116,13 +121,12 @@ export default function HomeScreen() {
   }
 
   async function handleConfirm() {
-    if (lookupResult) {
-      const preparedFlight = createFlightFromExternalSeed(lookupResult);
-      await savePreparedFlight(preparedFlight);
+    if (lookupResult && preparedPreview) {
+      await savePreparedFlight(preparedPreview);
 
       router.push({
         pathname: "/flight/[id]/overview",
-        params: { id: preparedFlight.id }
+        params: { id: preparedPreview.id }
       });
       return;
     }
@@ -215,7 +219,7 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
 
-              {lookupResult ? (
+              {lookupResult && preparedPreview ? (
                 <View style={styles.resultCard}>
                   <Text style={styles.resultEyebrow}>Flight found</Text>
                   <Text style={styles.resultTitle}>{airportRouteLabel(lookupResult)}</Text>
@@ -223,10 +227,10 @@ export default function HomeScreen() {
                     {lookupResult.airlineName ?? lookupResult.airlineCode ?? "Airline"} · {lookupResult.flightNumber}
                   </Text>
                   <Text style={styles.resultBody}>
-                    Departure: {formatPhoneTime(lookupResult.estimatedDepartureUtc ?? lookupResult.scheduledDepartureUtc)} · phone time
+                    Departure: {formatPhoneTime(preparedPreview.schedule.revisedDeparture ?? preparedPreview.schedule.scheduledDeparture)} · phone time
                   </Text>
                   <Text style={styles.resultBody}>
-                    Arrival: {formatPhoneTime(lookupResult.estimatedArrivalUtc ?? lookupResult.scheduledArrivalUtc)} · phone time
+                    Arrival: {formatPhoneTime(preparedPreview.schedule.revisedArrival ?? preparedPreview.schedule.scheduledArrival)} · phone time
                   </Text>
                   {foundDepartureInfo ? (
                     <View style={styles.infoBox}>
