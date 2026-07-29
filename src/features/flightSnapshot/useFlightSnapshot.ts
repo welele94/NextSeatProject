@@ -16,9 +16,12 @@ import { getFlightSnapshot } from "./getFlightSnapshot";
 import { FlightSnapshot } from "./types";
 
 const AFTER_FLIGHT_WINDOW_MS = 90 * 60 * 1000;
-const ACTIVE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const REGULAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const ARRIVAL_REFRESH_INTERVAL_MS = 60 * 1000;
+const REFRESH_TIMER_MS = 60 * 1000;
 const REFRESH_BEFORE_DEPARTURE_MS = 2 * 60 * 60 * 1000;
 const REFRESH_AFTER_ARRIVAL_MS = 30 * 60 * 1000;
+const ARRIVAL_REFRESH_WINDOW_MS = 30 * 60 * 1000;
 
 type UseFlightSnapshotResult = {
   snapshot?: FlightSnapshot;
@@ -68,6 +71,15 @@ function shouldRefreshFlight(flight: Flight, now: Date): boolean {
     nowMs >= departureMs - REFRESH_BEFORE_DEPARTURE_MS &&
     nowMs <= arrivalMs + REFRESH_AFTER_ARRIVAL_MS
   );
+}
+
+function refreshIntervalForFlight(flight: Flight, now: Date): number {
+  const arrivalMs = parseTime(flight.schedule.revisedArrival ?? flight.schedule.scheduledArrival);
+  if (!arrivalMs) return REGULAR_REFRESH_INTERVAL_MS;
+
+  const remainingMs = arrivalMs - now.getTime();
+  const isNearArrival = remainingMs <= ARRIVAL_REFRESH_WINDOW_MS && remainingMs >= -REFRESH_AFTER_ARRIVAL_MS;
+  return isNearArrival ? ARRIVAL_REFRESH_INTERVAL_MS : REGULAR_REFRESH_INTERVAL_MS;
 }
 
 function preserveCurrentRouteId(refreshedFlight: Flight, currentFlight: Flight): Flight {
@@ -128,8 +140,9 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
       if (!flight || !shouldRefreshFlight(flight, now)) return;
 
       const nowMs = now.getTime();
+      const minimumRefreshInterval = refreshIntervalForFlight(flight, now);
       if (refreshInFlightRef.current) return;
-      if (lastRefreshAtRef.current && nowMs - lastRefreshAtRef.current < ACTIVE_REFRESH_INTERVAL_MS) return;
+      if (lastRefreshAtRef.current && nowMs - lastRefreshAtRef.current < minimumRefreshInterval) return;
 
       refreshInFlightRef.current = true;
       lastRefreshAtRef.current = nowMs;
@@ -155,7 +168,7 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
     }
 
     void refreshFlightIfNeeded();
-    const timer = setInterval(refreshFlightIfNeeded, ACTIVE_REFRESH_INTERVAL_MS);
+    const timer = setInterval(refreshFlightIfNeeded, REFRESH_TIMER_MS);
 
     return () => {
       isActive = false;
