@@ -10,18 +10,65 @@ function addMinutes(value: string, minutes: number): string {
   return new Date(new Date(value).getTime() + minutes * 60000).toISOString();
 }
 
+function durationBetween(start?: string, end?: string): number | undefined {
+  if (!start || !end) return undefined;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) return undefined;
+  return Math.round((endMs - startMs) / 60000);
+}
+
+function isPlausibleUpdatedDuration(updatedMinutes: number, scheduledMinutes: number): boolean {
+  const minimum = Math.max(15, Math.round(scheduledMinutes * 0.35));
+  const maximum = Math.max(scheduledMinutes + 45, Math.round(scheduledMinutes * 1.65));
+  return updatedMinutes >= minimum && updatedMinutes <= maximum;
+}
+
+function scheduledDuration(seed: ExternalFlightSeed): number | undefined {
+  const departure = validIso(seed.scheduledDepartureUtc);
+  const arrival = validIso(seed.scheduledArrivalUtc);
+  return durationBetween(departure, arrival);
+}
+
 function safeDuration(seed: ExternalFlightSeed): number {
+  const scheduledMinutes = scheduledDuration(seed);
   if (seed.durationMinutes && seed.durationMinutes > 0) return seed.durationMinutes;
+  if (scheduledMinutes && scheduledMinutes > 0) return scheduledMinutes;
 
   const departure = validIso(seed.estimatedDepartureUtc ?? seed.scheduledDepartureUtc);
   const arrival = validIso(seed.estimatedArrivalUtc ?? seed.scheduledArrivalUtc);
+  const updatedMinutes = durationBetween(departure, arrival);
 
-  if (departure && arrival) {
-    const minutes = Math.round((new Date(arrival).getTime() - new Date(departure).getTime()) / 60000);
-    if (minutes > 0) return minutes;
+  if (updatedMinutes && updatedMinutes > 0) return updatedMinutes;
+  return 120;
+}
+
+function resolveUpdatedArrival({
+  revisedDeparture,
+  revisedArrival,
+  scheduledDeparture,
+  scheduledArrival,
+  durationMinutes
+}: {
+  revisedDeparture?: string;
+  revisedArrival?: string;
+  scheduledDeparture: string;
+  scheduledArrival: string;
+  durationMinutes: number;
+}): string | undefined {
+  if (!revisedArrival) {
+    return revisedDeparture ? addMinutes(revisedDeparture, durationMinutes) : undefined;
   }
 
-  return 120;
+  const referenceDeparture = revisedDeparture ?? scheduledDeparture;
+  const updatedDuration = durationBetween(referenceDeparture, revisedArrival);
+  const scheduledDurationMinutes = durationBetween(scheduledDeparture, scheduledArrival) ?? durationMinutes;
+
+  if (!updatedDuration || !isPlausibleUpdatedDuration(updatedDuration, scheduledDurationMinutes)) {
+    return revisedDeparture ? addMinutes(revisedDeparture, scheduledDurationMinutes) : undefined;
+  }
+
+  return revisedArrival;
 }
 
 export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
@@ -31,7 +78,13 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
   const scheduledArrival =
     validIso(seed.scheduledArrivalUtc) ?? addMinutes(scheduledDeparture, durationMinutes);
   const revisedDeparture = validIso(seed.estimatedDepartureUtc);
-  const revisedArrival = validIso(seed.estimatedArrivalUtc);
+  const revisedArrival = resolveUpdatedArrival({
+    revisedDeparture,
+    revisedArrival: validIso(seed.estimatedArrivalUtc),
+    scheduledDeparture,
+    scheduledArrival,
+    durationMinutes
+  });
   const timelineDeparture = revisedDeparture ?? scheduledDeparture;
 
   const originCode = seed.departureAirportCode ?? seed.departureAirport;
