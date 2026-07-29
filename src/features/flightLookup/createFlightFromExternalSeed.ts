@@ -72,8 +72,11 @@ function resolveUpdatedArrival({
   return revisedArrival;
 }
 
-function hasValidCoordinate(latitude?: number, longitude?: number): latitude is number {
-  return (
+function coordinatesFromSeed(seed: ExternalFlightSeed, side: "departure" | "arrival"): Coordinates {
+  const latitude = side === "departure" ? seed.departureLatitude : seed.arrivalLatitude;
+  const longitude = side === "departure" ? seed.departureLongitude : seed.arrivalLongitude;
+
+  if (
     typeof latitude === "number" &&
     typeof longitude === "number" &&
     Number.isFinite(latitude) &&
@@ -82,14 +85,7 @@ function hasValidCoordinate(latitude?: number, longitude?: number): latitude is 
     latitude <= 90 &&
     longitude >= -180 &&
     longitude <= 180
-  );
-}
-
-function coordinatesFromSeed(seed: ExternalFlightSeed, side: "departure" | "arrival"): Coordinates {
-  const latitude = side === "departure" ? seed.departureLatitude : seed.arrivalLatitude;
-  const longitude = side === "departure" ? seed.departureLongitude : seed.arrivalLongitude;
-
-  if (hasValidCoordinate(latitude, longitude)) {
+  ) {
     return { latitude, longitude };
   }
 
