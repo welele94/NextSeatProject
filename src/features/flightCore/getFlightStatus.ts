@@ -6,6 +6,11 @@ export type FlightStatus =
   | "arrival_window"
   | "completed";
 
+const TAKEOFF_END_PERCENT = 5;
+const CLIMB_MINUTES = 20;
+const DESCENT_MINUTES = 20;
+const APPROACH_MINUTES = 8;
+
 function percentFromMinutes(minutes: number, durationMinutes: number): number {
   return (minutes / Math.max(durationMinutes, 1)) * 100;
 }
@@ -37,34 +42,37 @@ export function getFlightStatus(
     return "completed";
   }
 
+  if (remainingMinutes !== undefined && remainingMinutes <= APPROACH_MINUTES) {
+    return "arrival_window";
+  }
+
+  if (remainingMinutes !== undefined && remainingMinutes <= DESCENT_MINUTES) {
+    return "late_flight";
+  }
+
   const resolvedDurationMinutes = resolveDurationMinutes(
     durationMinutes,
     elapsedMinutes,
     remainingMinutes
   );
 
-  // Keep the model simple and explainable:
-  // - takeoff is the first few minutes, capped at 5% of the journey
-  // - climb continues through the early part of the flight, capped at 15%
-  // - descent is the final 20 minutes
-  // - approach is the final 8 minutes
-  const takeoffEndPercent = Math.min(5, percentFromMinutes(5, resolvedDurationMinutes));
-  const climbEndPercent = Math.min(15, percentFromMinutes(20, resolvedDurationMinutes));
+  // Keep the phase model easy to explain:
+  // - takeoff covers roughly the first 5% of the journey
+  // - climb covers about the first 20 minutes, converted into journey percentage
+  // - cruise is the space between climb and the final descent window
+  // - descent starts when around 20 minutes remain
+  // - approach starts when around 8 minutes remain
+  const climbEndPercent = Math.max(
+    TAKEOFF_END_PERCENT,
+    percentFromMinutes(CLIMB_MINUTES, resolvedDurationMinutes)
+  );
 
-  if (progressPercent < takeoffEndPercent) {
+  if (progressPercent < TAKEOFF_END_PERCENT) {
     return "early_flight";
   }
 
   if (progressPercent < climbEndPercent) {
     return "early_flight";
-  }
-
-  if (remainingMinutes !== undefined && remainingMinutes <= 8) {
-    return "arrival_window";
-  }
-
-  if (remainingMinutes !== undefined && remainingMinutes <= 20) {
-    return "late_flight";
   }
 
   return "cruise";
