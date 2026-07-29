@@ -125,6 +125,7 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       departureGate: seed.departureGate,
       baggageBelt: seed.baggageBelt,
       preparedAt: new Date().toISOString(),
+      providerFetchedAt: seed.fetchedAt,
       liveAltitudeFeet: seed.liveAltitudeFeet,
       liveVerticalSpeedFeetPerMinute: seed.liveVerticalSpeedFeetPerMinute,
       livePositionReportedAtUtc: seed.livePositionReportedAtUtc
