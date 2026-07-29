@@ -17,6 +17,7 @@ import { buildFlightSummary } from "./buildFlightSummary";
 import { FlightSnapshot } from "./types";
 
 const emptyEnvironmentContext: EnvironmentContext = {};
+const PROVIDER_LANDED_TOLERANCE_MS = 5 * 60 * 1000;
 
 function estimateDelayMinutes(progress: FlightProgress): number | undefined {
   if (progress.isBeforeDeparture || progress.isAfterArrival) return undefined;
@@ -107,19 +108,26 @@ function buildJourneyInformation(flight: Flight, progress: FlightProgress): Jour
   };
 }
 
-function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgress): FlightStatus {
-  const providerLanded = flight.operations?.providerStatus === "landed";
-  const revisedArrivalMs = flight.schedule.revisedArrival
-    ? Date.parse(flight.schedule.revisedArrival)
-    : Number.NaN;
-  const revisedArrivalPassed = !Number.isNaN(revisedArrivalMs) && currentTime.getTime() >= revisedArrivalMs;
+function resolveArrivalMs(flight: Flight): number | undefined {
+  const value = flight.schedule.revisedArrival ?? flight.schedule.scheduledArrival;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
 
-  if (providerLanded || revisedArrivalPassed) return "completed";
+function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgress): FlightStatus {
+  const arrivalMs = resolveArrivalMs(flight);
+  const arrivalPassed = arrivalMs !== undefined && currentTime.getTime() >= arrivalMs;
+  const providerLanded = flight.operations?.providerStatus === "landed";
+  const providerLandedIsPlausible =
+    providerLanded &&
+    (arrivalMs === undefined || currentTime.getTime() >= arrivalMs - PROVIDER_LANDED_TOLERANCE_MS);
+
+  if (arrivalPassed || providerLandedIsPlausible) return "completed";
 
   return getFlightStatus(
     progress.progressPercent,
     progress.isBeforeDeparture,
-    progress.isAfterArrival
+    false
   );
 }
 
@@ -131,7 +139,7 @@ export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSn
     : estimateRemainingTime(flight, rawProgress.progressPercent);
   const progress: FlightProgress = status === "completed"
     ? { ...rawProgress, progressPercent: 100, remainingMinutes: 0, isAfterArrival: true }
-    : { ...rawProgress, remainingMinutes };
+    : { ...rawProgress, remainingMinutes, isAfterArrival: false };
 
   const currentCheckpoint = getCurrentCheckpoint(flight.checkpoints, progress.progressPercent);
   const nextCheckpoint = getNextCheckpoint(flight.checkpoints, progress.progressPercent);
