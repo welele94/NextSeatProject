@@ -13,11 +13,15 @@ type NormalizableFlightRecord = {
   departureAirportCode?: unknown;
   departureCity?: unknown;
   departureTimeZone?: unknown;
+  departureLatitude?: unknown;
+  departureLongitude?: unknown;
 
   arrivalAirport?: unknown;
   arrivalAirportCode?: unknown;
   arrivalCity?: unknown;
   arrivalTimeZone?: unknown;
+  arrivalLatitude?: unknown;
+  arrivalLongitude?: unknown;
 
   scheduledDepartureUtc?: unknown;
   scheduledDepartureLocal?: unknown;
@@ -94,6 +98,20 @@ function optionalNumber(value: unknown): number | undefined {
     : undefined;
 }
 
+function optionalLatitude(value: unknown): number | undefined {
+  const numberValue = optionalNumber(value);
+  return numberValue !== undefined && numberValue >= -90 && numberValue <= 90
+    ? numberValue
+    : undefined;
+}
+
+function optionalLongitude(value: unknown): number | undefined {
+  const numberValue = optionalNumber(value);
+  return numberValue !== undefined && numberValue >= -180 && numberValue <= 180
+    ? numberValue
+    : undefined;
+}
+
 export function normalizeExternalFlightResponse(
   providerResponse: NormalizableFlightRecord,
   provider: FlightLookupProviderId,
@@ -110,11 +128,15 @@ export function normalizeExternalFlightResponse(
     departureAirportCode: optionalString(providerResponse.departureAirportCode)?.toUpperCase(),
     departureCity: optionalString(providerResponse.departureCity),
     departureTimeZone: optionalString(providerResponse.departureTimeZone),
+    departureLatitude: optionalLatitude(providerResponse.departureLatitude),
+    departureLongitude: optionalLongitude(providerResponse.departureLongitude),
 
     arrivalAirport: requiredString(providerResponse.arrivalAirport, "arrivalAirport"),
     arrivalAirportCode: optionalString(providerResponse.arrivalAirportCode)?.toUpperCase(),
     arrivalCity: optionalString(providerResponse.arrivalCity),
     arrivalTimeZone: optionalString(providerResponse.arrivalTimeZone),
+    arrivalLatitude: optionalLatitude(providerResponse.arrivalLatitude),
+    arrivalLongitude: optionalLongitude(providerResponse.arrivalLongitude),
 
     scheduledDepartureUtc: optionalIsoDate(providerResponse.scheduledDepartureUtc),
     scheduledDepartureLocal: optionalLocalTime(providerResponse.scheduledDepartureLocal),
