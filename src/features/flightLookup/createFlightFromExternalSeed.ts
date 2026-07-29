@@ -124,7 +124,10 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       departureTerminal: seed.departureTerminal,
       departureGate: seed.departureGate,
       baggageBelt: seed.baggageBelt,
-      preparedAt: new Date().toISOString()
+      preparedAt: new Date().toISOString(),
+      liveAltitudeFeet: seed.liveAltitudeFeet,
+      liveVerticalSpeedFeetPerMinute: seed.liveVerticalSpeedFeetPerMinute,
+      livePositionReportedAtUtc: seed.livePositionReportedAtUtc
     },
     routeDistanceKm: estimatedDistanceKm,
     routeCoordinates: [
