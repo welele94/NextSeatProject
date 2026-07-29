@@ -6,57 +6,28 @@ export type FlightStatus =
   | "arrival_window"
   | "completed";
 
-type FlightPhaseThresholds = {
-  earlyFlightEndPercent: number;
-  cruiseEndPercent: number;
-  lateFlightEndPercent: number;
-};
+function percentFromMinutes(minutes: number, durationMinutes: number): number {
+  return (minutes / Math.max(durationMinutes, 1)) * 100;
+}
 
-function resolvePhaseThresholds(durationMinutes?: number): FlightPhaseThresholds {
-  if (!durationMinutes || durationMinutes <= 0) {
-    return {
-      earlyFlightEndPercent: 20,
-      cruiseEndPercent: 70,
-      lateFlightEndPercent: 90
-    };
-  }
+function resolveDurationMinutes(
+  durationMinutes: number | undefined,
+  elapsedMinutes: number | undefined,
+  remainingMinutes: number | undefined
+): number {
+  if (durationMinutes && durationMinutes > 0) return durationMinutes;
 
-  if (durationMinutes <= 75) {
-    return {
-      earlyFlightEndPercent: 22,
-      cruiseEndPercent: 48,
-      lateFlightEndPercent: 78
-    };
-  }
-
-  if (durationMinutes <= 120) {
-    return {
-      earlyFlightEndPercent: 20,
-      cruiseEndPercent: 58,
-      lateFlightEndPercent: 82
-    };
-  }
-
-  if (durationMinutes <= 180) {
-    return {
-      earlyFlightEndPercent: 20,
-      cruiseEndPercent: 65,
-      lateFlightEndPercent: 88
-    };
-  }
-
-  return {
-    earlyFlightEndPercent: 20,
-    cruiseEndPercent: 70,
-    lateFlightEndPercent: 90
-  };
+  const timelineDuration = (elapsedMinutes ?? 0) + (remainingMinutes ?? 0);
+  return Math.max(timelineDuration, 1);
 }
 
 export function getFlightStatus(
   progressPercent: number,
   isBeforeDeparture: boolean,
   isAfterArrival: boolean,
-  durationMinutes?: number
+  durationMinutes?: number,
+  elapsedMinutes?: number,
+  remainingMinutes?: number
 ): FlightStatus {
   if (isBeforeDeparture) {
     return "before_departure";
@@ -66,19 +37,35 @@ export function getFlightStatus(
     return "completed";
   }
 
-  const thresholds = resolvePhaseThresholds(durationMinutes);
+  const resolvedDurationMinutes = resolveDurationMinutes(
+    durationMinutes,
+    elapsedMinutes,
+    remainingMinutes
+  );
 
-  if (progressPercent < thresholds.earlyFlightEndPercent) {
+  // Keep the model simple and explainable:
+  // - takeoff is the first few minutes, capped at 5% of the journey
+  // - climb continues through the early part of the flight, capped at 15%
+  // - descent is the final 20 minutes
+  // - approach is the final 8 minutes
+  const takeoffEndPercent = Math.min(5, percentFromMinutes(5, resolvedDurationMinutes));
+  const climbEndPercent = Math.min(15, percentFromMinutes(20, resolvedDurationMinutes));
+
+  if (progressPercent < takeoffEndPercent) {
     return "early_flight";
   }
 
-  if (progressPercent < thresholds.cruiseEndPercent) {
-    return "cruise";
+  if (progressPercent < climbEndPercent) {
+    return "early_flight";
   }
 
-  if (progressPercent < thresholds.lateFlightEndPercent) {
+  if (remainingMinutes !== undefined && remainingMinutes <= 8) {
+    return "arrival_window";
+  }
+
+  if (remainingMinutes !== undefined && remainingMinutes <= 20) {
     return "late_flight";
   }
 
-  return "arrival_window";
+  return "cruise";
 }
