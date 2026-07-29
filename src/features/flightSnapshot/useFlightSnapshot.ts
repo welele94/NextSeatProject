@@ -1,11 +1,14 @@
 import { router, useGlobalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getMockFlightById, mockFlights } from "@/data/mockFlights";
+import { createFlightFromExternalSeed } from "@/features/flightLookup/createFlightFromExternalSeed";
 import {
   getPreparedFlight,
-  removePreparedFlight
+  removePreparedFlight,
+  savePreparedFlight
 } from "@/features/flightLookup/preparedFlightStorage";
+import { requestFlightLookup } from "@/features/flightLookup/requestFlightLookup";
 import { getCurrentTimestamp } from "@/features/time/getCurrentTimestamp";
 import { Flight } from "@/types/flight";
 
@@ -13,6 +16,9 @@ import { getFlightSnapshot } from "./getFlightSnapshot";
 import { FlightSnapshot } from "./types";
 
 const AFTER_FLIGHT_WINDOW_MS = 90 * 60 * 1000;
+const ACTIVE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const REFRESH_BEFORE_DEPARTURE_MS = 2 * 60 * 60 * 1000;
+const REFRESH_AFTER_ARRIVAL_MS = 30 * 60 * 1000;
 
 type UseFlightSnapshotResult = {
   snapshot?: FlightSnapshot;
@@ -41,8 +47,44 @@ function getAutoEndAt(flight: Flight): number | undefined {
   return Math.max(arrivalWindowEnd, preparedAtMs + AFTER_FLIGHT_WINDOW_MS);
 }
 
+function getLookupDate(flight: Flight): string {
+  return (flight.schedule.scheduledDeparture ?? flight.schedule.revisedDeparture).slice(0, 10);
+}
+
+function isPreparedExternalFlight(id: string, flight: Flight): boolean {
+  return id.startsWith("external-") || Boolean(flight.operations?.preparedAt);
+}
+
+function shouldRefreshFlight(flight: Flight, now: Date): boolean {
+  const status = flight.operations?.providerStatus;
+  if (status === "landed" || status === "cancelled") return false;
+
+  const departureMs = parseTime(flight.schedule.revisedDeparture ?? flight.schedule.scheduledDeparture);
+  const arrivalMs = parseTime(flight.schedule.revisedArrival ?? flight.schedule.scheduledArrival);
+  if (!departureMs || !arrivalMs) return false;
+
+  const nowMs = now.getTime();
+  return (
+    nowMs >= departureMs - REFRESH_BEFORE_DEPARTURE_MS &&
+    nowMs <= arrivalMs + REFRESH_AFTER_ARRIVAL_MS
+  );
+}
+
+function preserveCurrentRouteId(refreshedFlight: Flight, currentFlight: Flight): Flight {
+  return {
+    ...refreshedFlight,
+    id: currentFlight.id,
+    operations: {
+      ...refreshedFlight.operations,
+      preparedAt: currentFlight.operations?.preparedAt ?? refreshedFlight.operations?.preparedAt
+    }
+  };
+}
+
 export function useFlightSnapshot(): UseFlightSnapshotResult {
   const { id } = useGlobalSearchParams<{ id: string }>();
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(() => getCurrentTimestamp());
   const [flight, setFlight] = useState<Flight | undefined>(() =>
     id ? getMockFlightById(id) : mockFlights[0]
@@ -75,6 +117,51 @@ export function useFlightSnapshot(): UseFlightSnapshotResult {
       isActive = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !flight || !isPreparedExternalFlight(id, flight)) return;
+
+    let isActive = true;
+
+    async function refreshFlightIfNeeded() {
+      const now = getCurrentTimestamp();
+      if (!flight || !shouldRefreshFlight(flight, now)) return;
+
+      const nowMs = now.getTime();
+      if (refreshInFlightRef.current) return;
+      if (lastRefreshAtRef.current && nowMs - lastRefreshAtRef.current < ACTIVE_REFRESH_INTERVAL_MS) return;
+
+      refreshInFlightRef.current = true;
+      lastRefreshAtRef.current = nowMs;
+
+      try {
+        const result = await requestFlightLookup({
+          flightNumber: flight.flightNumber,
+          date: getLookupDate(flight)
+        });
+
+        if (!isActive || !result.ok) return;
+
+        const refreshedFlight = preserveCurrentRouteId(
+          createFlightFromExternalSeed(result.data),
+          flight
+        );
+
+        await savePreparedFlight(refreshedFlight);
+        if (isActive) setFlight(refreshedFlight);
+      } finally {
+        refreshInFlightRef.current = false;
+      }
+    }
+
+    void refreshFlightIfNeeded();
+    const timer = setInterval(refreshFlightIfNeeded, ACTIVE_REFRESH_INTERVAL_MS);
+
+    return () => {
+      isActive = false;
+      clearInterval(timer);
+    };
+  }, [flight, id]);
 
   const endJourney = useCallback(async () => {
     if (id) await removePreparedFlight(id);
