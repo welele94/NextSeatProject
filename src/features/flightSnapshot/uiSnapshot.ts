@@ -65,6 +65,8 @@ export type FlightUiSnapshot = {
   phaseTheme: PhaseTheme;
 };
 
+const TAKEOFF_COPY_MINUTES = 5;
+
 const defaultDetails: FlightDetailsSnapshot = {
   confidenceLevel: "high",
   predictionMode: "offline-estimated",
@@ -189,6 +191,10 @@ function makeMoment(
   };
 }
 
+function isClimbMoment(snapshot: FlightSnapshot): boolean {
+  return snapshot.status === "early_flight" && snapshot.progress.elapsedMinutes > TAKEOFF_COPY_MINUTES;
+}
+
 function buildPreFlightMoment(gateInfo?: AirportInfo): NextExpectedMoment {
   const gateCopy = gateInfo
     ? `\n\nYour saved departure information is ${gateInfo.primary}. Please confirm this on the airport screens, as gates can change.`
@@ -214,22 +220,37 @@ function buildPhaseHero(snapshot: FlightSnapshot, gateInfo?: AirportInfo) {
         nextExpectedMoment: buildPreFlightMoment(gateInfo),
         guidanceCopy: "Your saved flight details are ready, and Next Seat will keep the guidance simple and calm."
       };
-    case "early_flight":
+    case "early_flight": {
+      const isClimb = isClimbMoment(snapshot);
       return {
-        currentPhaseLabel: "Takeoff",
-        reassuranceMessage: {
-          title: "Takeoff is underway",
-          body: "This part can feel powerful, but it is one of the most carefully prepared parts of the journey."
-        },
-        nextExpectedMoment: makeMoment(
-          "Climb and early flight are next",
-          "You may notice stronger engine sound, acceleration, and small turns after departure. These are expected and part of the plan.",
-          "You may notice stronger engine sound, firm acceleration, the nose lifting, and small turns after departure. These are expected parts of takeoff and early climb.",
-          "phase_progression"
-        ),
-        guidanceCopy:
-          "You may feel some tension during this moment, but this does not mean something is wrong. What you are seeing is attention, timing, and routine."
+        currentPhaseLabel: isClimb ? "Climb" : "Takeoff",
+        reassuranceMessage: isClimb
+          ? {
+              title: "The aircraft is climbing",
+              body: "The flight is still leaving the lower part of the route. Engine sound, turns and small changes in angle can be normal here."
+            }
+          : {
+              title: "Takeoff is underway",
+              body: "This part can feel powerful, but it is one of the most carefully prepared parts of the journey."
+            },
+        nextExpectedMoment: isClimb
+          ? makeMoment(
+              "Reaching a steadier part is next",
+              "After the early climb, the aircraft usually settles into a steadier middle part of the journey.",
+              "You may notice engine sound changing, the aircraft leveling gradually, cabin movement starting later, or the seatbelt sign changing. These can be normal signs that the flight is settling after departure.",
+              "phase_progression"
+            )
+          : makeMoment(
+              "Climb and early flight are next",
+              "You may notice stronger engine sound, acceleration, and small turns after departure. These are expected and part of the plan.",
+              "You may notice stronger engine sound, firm acceleration, the nose lifting, and small turns after departure. These are expected parts of takeoff and early climb.",
+              "phase_progression"
+            ),
+        guidanceCopy: isClimb
+          ? "This can still feel busy, but it is a normal early part of the route after departure."
+          : "You may feel some tension during this moment, but this does not mean something is wrong. What you are seeing is attention, timing, and routine."
       };
+    }
     case "cruise":
       return {
         currentPhaseLabel: "Cruise",
@@ -248,7 +269,7 @@ function buildPhaseHero(snapshot: FlightSnapshot, gateInfo?: AirportInfo) {
     case "late_flight":
     case "arrival_window":
       return {
-        currentPhaseLabel: "Descent",
+        currentPhaseLabel: snapshot.status === "arrival_window" ? "Approach" : "Descent",
         reassuranceMessage: {
           title: "The aircraft is preparing for arrival",
           body: "The final part of the flight can feel a little busier because the aircraft is gradually moving from cruise toward landing."
@@ -270,23 +291,27 @@ function buildPhaseHero(snapshot: FlightSnapshot, gateInfo?: AirportInfo) {
 
 function buildCurrentMomentSummary(snapshot: FlightSnapshot): CurrentMomentSummary | undefined {
   switch (snapshot.status) {
-    case "early_flight":
+    case "early_flight": {
+      const isClimb = isClimbMoment(snapshot);
       return {
         label: "What is happening now",
-        title: "Cabin crew seated, engines stronger, runway departure sequence in progress",
-        body: "This is a coordinated phase where everything is working together as planned."
+        title: isClimb ? "The aircraft may still be climbing" : "Takeoff and initial departure are underway",
+        body: isClimb
+          ? "The flight is still in its early route phase, so engine sound, turns and a changing angle can be normal."
+          : "This is a coordinated phase where the aircraft, crew and air traffic control are following the departure sequence."
       };
+    }
     case "cruise":
       return {
         label: "What is happening now",
-        title: "Cabin service may be underway",
-        body: "The pilots are monitoring the aircraft, and air traffic control continues to guide the flight."
+        title: "The flight is settling into its middle section",
+        body: "This is usually a steadier part of the journey. Cabin service may happen later, but it does not need to be happening right now."
       };
     case "late_flight":
     case "arrival_window":
       return {
         label: "What is happening now",
-        title: "The crew may collect items, check the cabin again, and prepare everyone for landing.",
+        title: "The crew may prepare the cabin for arrival",
         body: "This can feel more structured because the flight is entering its final sequence."
       };
     default:
