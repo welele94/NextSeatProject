@@ -13,6 +13,8 @@ export type CurrentMomentExplanation = {
   closingReassurance: string;
 };
 
+const TAKEOFF_COPY_MINUTES = 5;
+
 const preFlightExplanation: CurrentMomentExplanation = {
   eyebrow: "What is happening now",
   title: "The flight is being prepared",
@@ -71,6 +73,36 @@ const takeoffExplanation: CurrentMomentExplanation = {
     }
   ],
   closingReassurance: "It can feel intense, but it is highly coordinated."
+};
+
+const climbExplanation: CurrentMomentExplanation = {
+  eyebrow: "What is happening now",
+  title: "The aircraft may still be climbing",
+  body:
+    "After takeoff, the aircraft continues leaving the lower part of the route. This can still feel active before the flight settles into a steadier middle section.",
+  cards: [
+    {
+      title: "In the cabin",
+      body:
+        "The cabin may stay seated and quiet for a bit after departure. The crew may wait before moving around because the aircraft is still in the early part of the route."
+    },
+    {
+      title: "In the cockpit",
+      body:
+        "The pilots continue following the departure path, managing speed and climb, and monitoring the aircraft as it settles after takeoff."
+    },
+    {
+      title: "With air traffic control",
+      body:
+        "Air traffic control continues guiding the aircraft away from the departure area. Turns, small level-offs, or route instructions can happen as part of normal traffic flow."
+    },
+    {
+      title: "What you may feel",
+      body:
+        "You may notice engine sound changing, the aircraft turning, the angle changing, or the climb feeling less constant. These changes are normal after departure."
+    }
+  ],
+  closingReassurance: "This is still an early part of the route, not a sign that something is wrong."
 };
 
 const cruiseExplanation: CurrentMomentExplanation = {
@@ -170,7 +202,9 @@ export function buildCurrentMomentExplanation(
     case "before_departure":
       return preFlightExplanation;
     case "early_flight":
-      return takeoffExplanation;
+      return snapshot.progress.elapsedMinutes > TAKEOFF_COPY_MINUTES
+        ? climbExplanation
+        : takeoffExplanation;
     case "cruise":
       return cruiseExplanation;
     case "late_flight":
