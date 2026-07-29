@@ -37,8 +37,25 @@ type RouteSegmentData = {
   angle: number;
 };
 
-const MAP_WIDTH = 360;
-const MAP_HEIGHT = 258;
+type MapShape = {
+  id: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  rotate?: string;
+  opacity?: number;
+};
+
+type MapLabel = {
+  id: string;
+  label: string;
+  left: number;
+  top: number;
+};
+
+const MAP_WIDTH = 342;
+const MAP_HEIGHT = 246;
 const ROUTE_SAMPLE_COUNT = 32;
 
 const journeyStages: JourneyStage[] = [
@@ -47,6 +64,39 @@ const journeyStages: JourneyStage[] = [
   { label: "Cruise", icon: "cloud-outline", threshold: 50 },
   { label: "Descent", icon: "navigate-outline", threshold: 80 },
   { label: "Arrival", icon: "business-outline", threshold: 100 }
+];
+
+const europeShapes: MapShape[] = [
+  { id: "iberia", left: 46, top: 135, width: 82, height: 62, rotate: "-10deg", opacity: 0.98 },
+  { id: "france", left: 122, top: 92, width: 94, height: 82, rotate: "8deg", opacity: 0.94 },
+  { id: "benelux", left: 184, top: 75, width: 54, height: 46, rotate: "-8deg", opacity: 0.96 },
+  { id: "germany", left: 216, top: 74, width: 78, height: 78, rotate: "6deg", opacity: 0.9 },
+  { id: "uk", left: 120, top: 44, width: 50, height: 62, rotate: "-18deg", opacity: 0.9 },
+  { id: "ireland", left: 80, top: 52, width: 36, height: 44, rotate: "10deg", opacity: 0.78 },
+  { id: "italy", left: 214, top: 155, width: 36, height: 76, rotate: "-22deg", opacity: 0.82 },
+  { id: "alps", left: 188, top: 144, width: 94, height: 30, rotate: "5deg", opacity: 0.7 },
+  { id: "scandinavia", left: 248, top: 0, width: 78, height: 98, rotate: "18deg", opacity: 0.58 }
+];
+
+const europeLabels: MapLabel[] = [
+  { id: "portugal", label: "Portugal", left: 54, top: 168 },
+  { id: "france", label: "France", left: 148, top: 128 },
+  { id: "belgium", label: "Belgium", left: 192, top: 86 }
+];
+
+const worldShapes: MapShape[] = [
+  { id: "north-america", left: 20, top: 44, width: 96, height: 78, rotate: "-10deg", opacity: 0.8 },
+  { id: "south-america", left: 88, top: 134, width: 54, height: 90, rotate: "18deg", opacity: 0.78 },
+  { id: "europe", left: 160, top: 62, width: 58, height: 42, rotate: "5deg", opacity: 0.88 },
+  { id: "africa", left: 170, top: 112, width: 70, height: 82, rotate: "-4deg", opacity: 0.82 },
+  { id: "asia", left: 216, top: 54, width: 110, height: 86, rotate: "8deg", opacity: 0.78 },
+  { id: "australia", left: 260, top: 166, width: 62, height: 38, rotate: "8deg", opacity: 0.7 }
+];
+
+const worldLabels: MapLabel[] = [
+  { id: "europe", label: "Europe", left: 172, top: 78 },
+  { id: "atlantic", label: "Atlantic", left: 112, top: 98 },
+  { id: "africa", label: "Africa", left: 184, top: 150 }
 ];
 
 function splitRoute(routeLabel: string) {
@@ -175,15 +225,6 @@ function getActiveStageIndex(phaseLabel: string, percent: number): number {
   return 0;
 }
 
-function mapWebBackgroundStyle(uri: string) {
-  return {
-    backgroundImage: `url("${uri}")`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat"
-  } as never;
-}
-
 function SkyBackground() {
   return (
     <>
@@ -216,6 +257,38 @@ function LocationMarker({ point, label }: { point: MapPoint; label: string }) {
     <View style={[styles.locationMarker, { left: point.x, top: point.y }]}> 
       <View style={styles.markerDot} />
       <Text style={styles.markerLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function OfflineMapFallback({ mapId }: { mapId: OfflineRouteMapAsset["id"] }) {
+  const shapes = mapId === "europe" ? europeShapes : worldShapes;
+  const labels = mapId === "europe" ? europeLabels : worldLabels;
+
+  return (
+    <View pointerEvents="none" style={styles.vectorMapLayer}>
+      <View style={styles.waterVignette} />
+      {shapes.map((shape) => (
+        <View
+          key={shape.id}
+          style={[
+            styles.mapLand,
+            {
+              left: shape.left,
+              top: shape.top,
+              width: shape.width,
+              height: shape.height,
+              opacity: shape.opacity ?? 0.86,
+              transform: shape.rotate ? [{ rotate: shape.rotate }] : undefined
+            }
+          ]}
+        />
+      ))}
+      {labels.map((item) => (
+        <Text key={item.id} style={[styles.mapRegionLabel, { left: item.left, top: item.top }]}>
+          {item.label}
+        </Text>
+      ))}
     </View>
   );
 }
@@ -261,11 +334,8 @@ function OfflineRouteMap({
       </View>
 
       <View style={styles.mapFrame}> 
-        <View
-          pointerEvents="none"
-          style={[styles.mapWebImageFallback, mapWebBackgroundStyle(mapAsset.uri)]}
-        />
         <Image source={{ uri: mapAsset.uri }} resizeMode="cover" style={styles.mapImage} />
+        <OfflineMapFallback mapId={mapAsset.id} />
         <View pointerEvents="none" style={styles.mapOverlay} />
         {segments.map((segment) => <RouteSegment key={segment.id} segment={segment} />)}
         <LocationMarker point={originPoint} label={originCode || origin} />
@@ -274,7 +344,7 @@ function OfflineRouteMap({
           <Ionicons name="airplane" size={25} color={colors.white} />
         </View>
         <View style={styles.mapCaptionPill}>
-          <Text style={styles.mapCaptionText}>Offline map · not live tracking</Text>
+          <Text style={styles.mapCaptionText}>Offline route map · not live tracking</Text>
         </View>
       </View>
     </View>
@@ -349,9 +419,7 @@ export default function JourneyTab() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Flight not found</Text>
-          <Text style={styles.emptyBody}>
-            This flight is not available on this device.
-          </Text>
+          <Text style={styles.emptyBody}>This flight is not available on this device.</Text>
         </View>
       </SafeAreaView>
     );
@@ -380,7 +448,7 @@ export default function JourneyTab() {
         <InfoCard
           icon="map-outline"
           title="Offline route map"
-          body={`This map is saved inside Next Seat. ${snapshot.flightSummary.originCode} and ${snapshot.flightSummary.destinationCode} are placed using the airport coordinates saved with your flight.`}
+          body={`This route view is saved inside Next Seat. ${snapshot.flightSummary.originCode} and ${snapshot.flightSummary.destinationCode} are placed using the airport coordinates saved with your flight.`}
         />
         <InfoCard
           icon="analytics-outline"
@@ -480,15 +548,14 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   mapFrame: {
-    width: "100%",
-    maxWidth: MAP_WIDTH,
+    width: MAP_WIDTH,
     height: MAP_HEIGHT,
     borderRadius: 34,
     overflow: "hidden",
     position: "relative",
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.78)",
-    backgroundColor: "#D9EEFF",
+    backgroundColor: "#CDEAFF",
     shadowColor: colors.primaryBlue,
     shadowOpacity: 0.2,
     shadowRadius: 26,
@@ -502,14 +569,36 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     width: "100%",
-    height: "100%"
+    height: "100%",
+    opacity: 0.38
   },
-  mapWebImageFallback: {
+  vectorMapLayer: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0
+    bottom: 0,
+    backgroundColor: "rgba(190, 225, 250, 0.5)"
+  },
+  waterVignette: {
+    position: "absolute",
+    inset: 0,
+    backgroundColor: "rgba(207, 235, 255, 0.35)"
+  },
+  mapLand: {
+    position: "absolute",
+    borderRadius: 24,
+    backgroundColor: "rgba(238, 248, 241, 0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(110, 151, 146, 0.14)"
+  },
+  mapRegionLabel: {
+    position: "absolute",
+    ...typography.caption,
+    color: "rgba(20, 43, 72, 0.46)",
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "800"
   },
   mapOverlay: {
     position: "absolute",
@@ -517,7 +606,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.06)"
+    backgroundColor: "rgba(255, 255, 255, 0.04)"
   },
   routeSegment: {
     position: "absolute",
