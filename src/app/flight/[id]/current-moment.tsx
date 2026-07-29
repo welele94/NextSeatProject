@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,6 +8,19 @@ import { buildCurrentMomentExplanation } from "@/features/flightSnapshot/current
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing, typography } from "@/theme";
+
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
+function getCardIcon(title: string): IoniconName {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("cabin")) return "people-outline";
+  if (normalized.includes("cockpit")) return "airplane-outline";
+  if (normalized.includes("traffic") || normalized.includes("airport")) return "radio-outline";
+  if (normalized.includes("baggage")) return "briefcase-outline";
+  if (normalized.includes("feel") || normalized.includes("notice")) return "body-outline";
+  if (normalized.includes("next")) return "checkmark-circle-outline";
+  return "information-circle-outline";
+}
 
 export default function CurrentMomentScreen() {
   const { snapshot } = useFlightSnapshot();
@@ -19,7 +33,8 @@ export default function CurrentMomentScreen() {
   const explanation = buildCurrentMomentExplanation(snapshot);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: ui.phaseTheme.pageBackground }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: ui.phaseTheme.pageBackground }]}> 
+      <View pointerEvents="none" style={styles.skyGlow} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
 
@@ -42,8 +57,8 @@ export default function CurrentMomentScreen() {
               ]}
             >
               <View style={styles.cardHeaderRow}>
-                <View style={[styles.cardIcon, { backgroundColor: ui.phaseTheme.accentSoft }]}>
-                  <Text style={styles.cardEmoji}>{card.emoji}</Text>
+                <View style={[styles.cardIcon, { backgroundColor: ui.phaseTheme.accentSoft }]}> 
+                  <Ionicons name={getCardIcon(card.title)} size={22} color={ui.phaseTheme.accent} />
                 </View>
                 <Text style={styles.cardTitle}>{card.title}</Text>
               </View>
@@ -52,7 +67,7 @@ export default function CurrentMomentScreen() {
           ))}
         </View>
 
-        <View style={[styles.reassuranceBox, { borderColor: ui.phaseTheme.accentBorder }]}>
+        <View style={[styles.reassuranceBox, { borderColor: ui.phaseTheme.accentBorder }]}> 
           <Ionicons name="checkmark-circle-outline" size={22} color={ui.phaseTheme.accent} />
           <Text style={[styles.reassuranceText, { color: ui.phaseTheme.accent }]}> 
             {explanation.closingReassurance}
@@ -66,7 +81,17 @@ export default function CurrentMomentScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background
+    backgroundColor: colors.background,
+    overflow: "hidden"
+  },
+  skyGlow: {
+    position: "absolute",
+    top: -120,
+    left: -80,
+    right: -80,
+    height: 420,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255, 255, 255, 0.48)"
   },
   content: {
     width: "100%",
@@ -81,10 +106,8 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   eyebrow: {
-    ...typography.caption,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.8
+    ...typography.eyebrow,
+    fontWeight: "800"
   },
   title: {
     ...typography.hero,
@@ -92,7 +115,7 @@ const styles = StyleSheet.create({
   },
   body: {
     ...typography.body,
-    color: colors.textSecondary
+    color: colors.textPrimary
   },
   cardsGroup: {
     gap: spacing.lg
@@ -101,7 +124,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.xl,
     borderRadius: radius.xl,
-    borderWidth: 1
+    borderWidth: 1.2,
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -109,15 +137,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   cardIcon: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center"
-  },
-  cardEmoji: {
-    fontSize: 19,
-    lineHeight: 24
   },
   cardTitle: {
     ...typography.section,
@@ -126,7 +150,7 @@ const styles = StyleSheet.create({
   },
   cardBody: {
     ...typography.body,
-    color: colors.textSecondary
+    color: colors.textPrimary
   },
   reassuranceBox: {
     flexDirection: "row",
@@ -134,8 +158,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    backgroundColor: colors.white
+    borderWidth: 1.2,
+    backgroundColor: colors.white,
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3
   },
   reassuranceText: {
     ...typography.body,
