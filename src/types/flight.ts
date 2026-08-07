@@ -32,10 +32,12 @@ export type FlightOperations = {
   preparedAt?: string;
   providerFetchedAt?: string;
 
-  // Internal guidance signals only. These improve phase selection but should not
-  // turn Next Seat into a flight-tracking UI.
+  // Internal guidance signals only. These improve phase/progress selection but
+  // should never turn Next Seat into a flight-tracking UI.
   liveAltitudeFeet?: number;
   liveVerticalSpeedFeetPerMinute?: number;
+  liveLatitude?: number;
+  liveLongitude?: number;
   livePositionReportedAtUtc?: string;
 };
 
@@ -53,8 +55,16 @@ export type Flight = {
   checkpoints: RouteCheckpoint[];
 };
 
+export type FlightProgressSource = "distance" | "timeline" | "hybrid";
+export type FlightProgressConfidence = "high" | "medium" | "low";
+
 export type FlightProgress = {
   progressPercent: number;
+  timelineProgressPercent: number;
+  distanceProgressPercent?: number;
+  displayedProgressPercent: number;
+  progressSource: FlightProgressSource;
+  confidence: FlightProgressConfidence;
   elapsedMinutes: number;
   remainingMinutes: number;
   isBeforeDeparture: boolean;
