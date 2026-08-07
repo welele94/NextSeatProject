@@ -42,6 +42,8 @@ type NormalizableFlightRecord = {
   durationMinutes?: unknown;
   liveAltitudeFeet?: unknown;
   liveVerticalSpeedFeetPerMinute?: unknown;
+  liveLatitude?: unknown;
+  liveLongitude?: unknown;
   livePositionReportedAtUtc?: unknown;
 };
 
@@ -157,6 +159,8 @@ export function normalizeExternalFlightResponse(
     durationMinutes: optionalDuration(providerResponse.durationMinutes),
     liveAltitudeFeet: optionalNumber(providerResponse.liveAltitudeFeet),
     liveVerticalSpeedFeetPerMinute: optionalNumber(providerResponse.liveVerticalSpeedFeetPerMinute),
+    liveLatitude: optionalLatitude(providerResponse.liveLatitude),
+    liveLongitude: optionalLongitude(providerResponse.liveLongitude),
     livePositionReportedAtUtc: optionalIsoDate(providerResponse.livePositionReportedAtUtc),
     provider,
     fetchedAt: new Date(fetchedAt).toISOString()
