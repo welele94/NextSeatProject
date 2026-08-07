@@ -3,12 +3,10 @@ import type { ComponentProps } from "react";
 import { useState } from "react";
 import {
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View
 } from "react-native";
 import type { DimensionValue } from "react-native";
@@ -50,6 +48,7 @@ type RouteSegmentData = {
 
 const MAP_WIDTH = 342;
 const MAP_HEIGHT = 190;
+const EXPANDED_MAP_HEIGHT = 360;
 const ROUTE_SAMPLE_COUNT = 32;
 const WORLD_MAP = require("../../../assets/maps/map.png");
 
@@ -98,9 +97,6 @@ function getRouteViewport(
 
   const midpointLongitude = (origin.longitude + destination.longitude) / 2;
   const midpointLatitude = (origin.latitude + destination.latitude) / 2;
-
-  // Keep enough context around short routes (for example Porto → Faro),
-  // while longer routes naturally show a wider region.
   let longitudeSpan = Math.max(Math.abs(destination.longitude - origin.longitude) * 1.65, 7.5);
   let latitudeSpan = Math.max(Math.abs(destination.latitude - origin.latitude) * 1.65, 6.5);
 
@@ -366,9 +362,6 @@ function OfflineRouteMap({
   percent: number;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const expandedWidth = Math.min(Math.max(windowWidth - 32, 300), 720);
-  const expandedHeight = Math.min(Math.max(windowHeight - 190, 330), 620);
 
   return (
     <View style={styles.mapCard}>
@@ -381,36 +374,9 @@ function OfflineRouteMap({
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open route map"
-        onPress={() => setIsExpanded(true)}
-        style={({ pressed }) => [styles.mapFrame, pressed && styles.mapPressed]}
-      >
-        <RouteMapCanvas
-          width={MAP_WIDTH}
-          height={MAP_HEIGHT}
-          origin={origin}
-          destination={destination}
-          originCode={originCode}
-          destinationCode={destinationCode}
-          originCoordinates={originCoordinates}
-          destinationCoordinates={destinationCoordinates}
-          percent={percent}
-        />
-        <View style={styles.expandButton}>
-          <Ionicons name="expand-outline" size={18} color={colors.primaryBlue} />
-        </View>
-      </Pressable>
-
-      <Modal
-        visible={isExpanded}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsExpanded(false)}
-      >
-        <SafeAreaView style={styles.modalBackdrop}>
-          <View style={styles.modalHeader}>
+      {isExpanded ? (
+        <View style={styles.expandedMapPanel}>
+          <View style={styles.expandedMapHeader}>
             <View>
               <Text style={styles.modalEyebrow}>Planned route view</Text>
               <Text style={styles.modalTitle}>{origin} → {destination}</Text>
@@ -424,10 +390,9 @@ function OfflineRouteMap({
               <Ionicons name="close" size={24} color={colors.primaryBlue} />
             </Pressable>
           </View>
-
           <RouteMapCanvas
-            width={expandedWidth}
-            height={expandedHeight}
+            width={MAP_WIDTH}
+            height={EXPANDED_MAP_HEIGHT}
             origin={origin}
             destination={destination}
             originCode={originCode}
@@ -437,10 +402,31 @@ function OfflineRouteMap({
             percent={percent}
             expanded
           />
-
           <Text style={styles.modalNote}>Based on the flight saved on this device.</Text>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open route map"
+          onPress={() => setIsExpanded(true)}
+          style={({ pressed }) => [styles.mapFrame, pressed && styles.mapPressed]}
+        >
+          <RouteMapCanvas
+            width={MAP_WIDTH}
+            height={MAP_HEIGHT}
+            origin={origin}
+            destination={destination}
+            originCode={originCode}
+            destinationCode={destinationCode}
+            originCoordinates={originCoordinates}
+            destinationCoordinates={destinationCoordinates}
+            percent={percent}
+          />
+          <View style={styles.expandButton}>
+            <Ionicons name="expand-outline" size={18} color={colors.primaryBlue} />
+          </View>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -587,8 +573,8 @@ const styles = StyleSheet.create({
   mapCaptionText: { ...typography.caption, color: colors.textPrimary, fontSize: 11, lineHeight: 14, fontWeight: "700" },
   expandButton: { position: "absolute", top: spacing.sm, right: spacing.sm, width: 34, height: 34, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.94)", borderWidth: 1, borderColor: "rgba(13,59,140,0.10)" },
   mapPressed: { opacity: 0.9 },
-  modalBackdrop: { flex: 1, backgroundColor: "#EAF5FF", alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.lg },
-  modalHeader: { width: "100%", maxWidth: 720, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.lg },
+  expandedMapPanel: { width: MAP_WIDTH, gap: spacing.md, padding: spacing.md, borderRadius: radius.xl, backgroundColor: "rgba(255,255,255,0.94)", borderWidth: 1, borderColor: "rgba(13,59,140,0.12)" },
+  expandedMapHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   modalEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
   modalTitle: { ...typography.title, color: colors.textPrimary, marginTop: spacing.xs },
   closeButton: { width: 44, height: 44, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: colors.white, borderWidth: 1, borderColor: "rgba(13,59,140,0.12)" },
