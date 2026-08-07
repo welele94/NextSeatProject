@@ -3,13 +3,14 @@ import { Coordinates } from "@/types/route";
 
 import { calculateFlightProgress } from "./calculateFlightProgress";
 
-const FRESH_POSITION_MAX_AGE_MS = 20 * 60 * 1000;
+const FRESH_POSITION_MAX_AGE_MS = 5 * 60 * 1000;
 const STALE_POSITION_MAX_AGE_MS = 60 * 60 * 1000;
 const FRESH_DISTANCE_WEIGHT = 0.8;
 const STALE_DISTANCE_WEIGHT = 0.5;
 const MAX_ROUTE_DISTANCE_RATIO = 1.35;
 const MIN_ROUTE_DISTANCE_RATIO = 0.85;
 const MAX_OFF_ROUTE_ALLOWANCE_KM = 180;
+const MAX_TIMELINE_ADVANCE_PERCENT = 25;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -86,10 +87,6 @@ function positionLooksPlausible(
 
   if (!Number.isFinite(fromOriginKm) || !Number.isFinite(toDestinationKm)) return false;
 
-  // A real route may bow away from the great-circle line, but a provider point
-  // whose two legs are wildly longer than the whole route is not useful for
-  // passenger-facing progress. Ignore it rather than letting one bad position
-  // jump the journey forwards or backwards.
   const travelledPlusRemainingKm = fromOriginKm + toDestinationKm;
   return travelledPlusRemainingKm <= totalDistanceKm * 1.2 + MAX_OFF_ROUTE_ALLOWANCE_KM;
 }
@@ -116,12 +113,37 @@ function resolveDistanceProgress(flight: Flight): number | undefined {
   return clamp(progress, 0, 100);
 }
 
-function livePositionAgeMs(flight: Flight, currentTime: Date): number | undefined {
+function livePositionReportedAt(flight: Flight): Date | undefined {
   const reportedAt = flight.operations?.livePositionReportedAtUtc;
   if (!reportedAt) return undefined;
   const reportedAtMs = Date.parse(reportedAt);
   if (Number.isNaN(reportedAtMs)) return undefined;
-  return Math.max(currentTime.getTime() - reportedAtMs, 0);
+  return new Date(reportedAtMs);
+}
+
+function livePositionAgeMs(flight: Flight, currentTime: Date): number | undefined {
+  const reportedAt = livePositionReportedAt(flight);
+  if (!reportedAt) return undefined;
+  return Math.max(currentTime.getTime() - reportedAt.getTime(), 0);
+}
+
+function advanceSavedDistanceProgress(
+  flight: Flight,
+  currentTime: Date,
+  distanceProgressPercent: number,
+  timelineProgressPercent: number
+): number {
+  const reportedAt = livePositionReportedAt(flight);
+  if (!reportedAt || reportedAt.getTime() >= currentTime.getTime()) return distanceProgressPercent;
+
+  const timelineAtPosition = calculateFlightProgress(flight, reportedAt).progressPercent;
+  const timelineAdvance = clamp(
+    timelineProgressPercent - timelineAtPosition,
+    0,
+    MAX_TIMELINE_ADVANCE_PERCENT
+  );
+
+  return clamp(distanceProgressPercent + timelineAdvance, 0, 100);
 }
 
 function blend(distanceProgress: number, timelineProgress: number, distanceWeight: number): number {
@@ -178,8 +200,16 @@ export function computeFlightProgress(
 
   const isFresh = positionAgeMs <= FRESH_POSITION_MAX_AGE_MS;
   const distanceWeight = isFresh ? FRESH_DISTANCE_WEIGHT : STALE_DISTANCE_WEIGHT;
+  const advancedDistanceProgressPercent = isFresh
+    ? distanceProgressPercent
+    : advanceSavedDistanceProgress(
+        flight,
+        currentTime,
+        distanceProgressPercent,
+        timelineProgressPercent
+      );
   const displayedProgressPercent = blend(
-    distanceProgressPercent,
+    advancedDistanceProgressPercent,
     timelineProgressPercent,
     distanceWeight
   );
