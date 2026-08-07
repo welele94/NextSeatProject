@@ -23,7 +23,7 @@ type AeroDataBoxCoordinates = {
   longitude?: number;
 };
 
-type AeroDataBoxLocation = {
+type AeroDataBoxLocation = AeroDataBoxCoordinates & {
   pressureAltitude?: AeroDataBoxDistance | number;
   altitude?: AeroDataBoxDistance | number;
   vsiFpm?: number;
@@ -108,11 +108,11 @@ function optionalLongitude(value?: number): number | undefined {
     : undefined;
 }
 
-function airportLatitude(location?: AeroDataBoxCoordinates): number | undefined {
+function coordinateLatitude(location?: AeroDataBoxCoordinates): number | undefined {
   return optionalLatitude(location?.lat) ?? optionalLatitude(location?.latitude);
 }
 
-function airportLongitude(location?: AeroDataBoxCoordinates): number | undefined {
+function coordinateLongitude(location?: AeroDataBoxCoordinates): number | undefined {
   return optionalLongitude(location?.lon) ?? optionalLongitude(location?.longitude);
 }
 
@@ -149,11 +149,7 @@ function mapStatus(status?: string): ExternalFlightStatus {
 }
 
 function preferredAirportName(movement?: AeroDataBoxMovement): string | undefined {
-  return (
-    movement?.airport?.municipalityName ??
-    movement?.airport?.shortName ??
-    movement?.airport?.name
-  );
+  return movement?.airport?.municipalityName ?? movement?.airport?.shortName ?? movement?.airport?.name;
 }
 
 function normalizeAeroDataBoxUtc(value?: string): string | undefined {
@@ -169,22 +165,14 @@ function normalizeAeroDataBoxLocal(value?: string): string | undefined {
 }
 
 function normalizeAeroDataBoxInstant(time?: AeroDataBoxTime): string | undefined {
-  // Prefer the airport-local timestamp when it includes an offset. It is the least
-  // ambiguous value for passenger-facing timelines and avoids mixing a stale/odd
-  // provider UTC value with a fresh local time.
   return normalizeAeroDataBoxUtc(time?.local) ?? normalizeAeroDataBoxUtc(time?.utc);
 }
 
 function preferredDepartureTime(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
-  // Once a flight has pushed back or departed, actualTime is the least misleading
-  // source for the departure side. revisedTime can remain close to the original
-  // schedule and would make delayed short hops look much longer than they are.
   return movement?.actualTime ?? movement?.revisedTime ?? movement?.predictedTime;
 }
 
 function preferredArrivalTime(movement?: AeroDataBoxMovement): AeroDataBoxTime | undefined {
-  // For the arrival side, actual is final, predicted is the best in-flight ETA,
-  // and revised is the fallback when the provider has not published a prediction.
   return movement?.actualTime ?? movement?.predictedTime ?? movement?.revisedTime;
 }
 
@@ -277,40 +265,36 @@ export class AeroDataBoxFlightProvider implements FlightDataProvider {
           flightNumber: flight.number ?? flightNumber,
           airlineCode: flight.airline?.iata ?? flightNumber.match(/^[A-Z0-9]{2,3}/)?.[0],
           airlineName: flight.airline?.name,
-
           departureAirport,
           departureAirportCode: flight.departure?.airport?.iata,
           departureCity: flight.departure?.airport?.municipalityName,
           departureTimeZone: flight.departure?.airport?.timeZone,
-          departureLatitude: airportLatitude(flight.departure?.airport?.location),
-          departureLongitude: airportLongitude(flight.departure?.airport?.location),
-
+          departureLatitude: coordinateLatitude(flight.departure?.airport?.location),
+          departureLongitude: coordinateLongitude(flight.departure?.airport?.location),
           arrivalAirport,
           arrivalAirportCode: flight.arrival?.airport?.iata,
           arrivalCity: flight.arrival?.airport?.municipalityName,
           arrivalTimeZone: flight.arrival?.airport?.timeZone,
-          arrivalLatitude: airportLatitude(flight.arrival?.airport?.location),
-          arrivalLongitude: airportLongitude(flight.arrival?.airport?.location),
-
+          arrivalLatitude: coordinateLatitude(flight.arrival?.airport?.location),
+          arrivalLongitude: coordinateLongitude(flight.arrival?.airport?.location),
           scheduledDepartureUtc,
           scheduledDepartureLocal: normalizeAeroDataBoxLocal(flight.departure?.scheduledTime?.local),
           scheduledArrivalUtc,
           scheduledArrivalLocal: normalizeAeroDataBoxLocal(flight.arrival?.scheduledTime?.local),
-
           estimatedDepartureUtc: normalizeAeroDataBoxInstant(estimatedDeparture),
           estimatedDepartureLocal: normalizeAeroDataBoxLocal(estimatedDeparture?.local),
           estimatedArrivalUtc: normalizeAeroDataBoxInstant(estimatedArrival),
           estimatedArrivalLocal: normalizeAeroDataBoxLocal(estimatedArrival?.local),
-
           departureTerminal: cleanOperationalValue(flight.departure?.terminal),
           departureGate: cleanOperationalValue(flight.departure?.gate),
           baggageBelt: cleanOperationalValue(flight.arrival?.baggageBelt),
           aircraftModel: cleanOperationalValue(flight.aircraft?.model),
-
           status: mapStatus(flight.status),
           durationMinutes: calculateDurationMinutes(scheduledDepartureUtc, scheduledArrivalUtc),
           liveAltitudeFeet: resolveLiveAltitudeFeet(flight.location),
           liveVerticalSpeedFeetPerMinute: optionalNumber(flight.location?.vsiFpm),
+          liveLatitude: coordinateLatitude(flight.location),
+          liveLongitude: coordinateLongitude(flight.location),
           livePositionReportedAtUtc: normalizeAeroDataBoxUtc(flight.location?.reportedAtUtc)
         },
         "aerodatabox"
