@@ -172,6 +172,8 @@ export function createFlightFromExternalSeed(seed: ExternalFlightSeed): Flight {
       providerFetchedAt: seed.fetchedAt,
       liveAltitudeFeet: seed.liveAltitudeFeet,
       liveVerticalSpeedFeetPerMinute: seed.liveVerticalSpeedFeetPerMinute,
+      liveLatitude: seed.liveLatitude,
+      liveLongitude: seed.liveLongitude,
       livePositionReportedAtUtc: seed.livePositionReportedAtUtc
     },
     routeDistanceKm: estimatedDistanceKm,
