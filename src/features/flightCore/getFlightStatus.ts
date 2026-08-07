@@ -26,7 +26,6 @@ function resolveDurationMinutes(
   remainingMinutes: number | undefined
 ): number {
   if (durationMinutes && durationMinutes > 0) return durationMinutes;
-
   const timelineDuration = (elapsedMinutes ?? 0) + (remainingMinutes ?? 0);
   return Math.max(timelineDuration, 1);
 }
@@ -48,16 +47,12 @@ function estimateClimbMinutes(targetAltitudeFeet: number): number {
 
   let minutes = 0;
   let previousCeilingFeet = 0;
-
   for (const band of climbBands) {
     if (targetAltitudeFeet <= previousCeilingFeet) break;
-
     const bandTopFeet = Math.min(targetAltitudeFeet, band.ceilingFeet);
-    const bandFeet = bandTopFeet - previousCeilingFeet;
-    minutes += bandFeet / band.rateFeetPerMinute;
+    minutes += (bandTopFeet - previousCeilingFeet) / band.rateFeetPerMinute;
     previousCeilingFeet = band.ceilingFeet;
   }
-
   return Math.round(minutes);
 }
 
@@ -65,10 +60,6 @@ function estimateClimbWindowMinutes(targetAltitudeFeet: number, durationMinutes:
   const physicsClimbMinutes = estimateClimbMinutes(targetAltitudeFeet);
   const bufferMinutes = durationMinutes <= 75 ? 3 : durationMinutes <= 180 ? 5 : 6;
   const maxWindowMinutes = durationMinutes <= 75 ? 20 : durationMinutes <= 180 ? 28 : 32;
-
-  // Keep the fallback calm, but do not stretch climb to a fixed percentage of the
-  // flight. That made medium routes stay in "Climb" after the aircraft had already
-  // reached normal cruise altitude.
   return clamp(
     physicsClimbMinutes + bufferMinutes,
     TAKEOFF_MINUTES,
@@ -97,6 +88,7 @@ function highAltitudeCruiseThresholdFeet(targetAltitudeFeet: number): number {
 function resolveLiveAltitudePhase({
   altitudeFeet,
   verticalSpeedFeetPerMinute,
+  progressPercent,
   targetAltitudeFeet,
   elapsedMinutes,
   remainingMinutes,
@@ -105,6 +97,7 @@ function resolveLiveAltitudePhase({
 }: {
   altitudeFeet?: number;
   verticalSpeedFeetPerMinute?: number;
+  progressPercent: number;
   targetAltitudeFeet: number;
   elapsedMinutes?: number;
   remainingMinutes?: number;
@@ -116,44 +109,39 @@ function resolveLiveAltitudePhase({
   const isClimbing = verticalSpeedFeetPerMinute !== undefined && verticalSpeedFeetPerMinute >= CLIMBING_VSI_FPM;
   const isDescending = verticalSpeedFeetPerMinute !== undefined && verticalSpeedFeetPerMinute <= DESCENDING_VSI_FPM;
   const elapsed = elapsedMinutes ?? 0;
+  const nearDestination = progressPercent >= 85;
+  const veryNearDestination = progressPercent >= 94;
 
-  // When we have live altitude, it should override the calm timeline model.
-  // Below 10,000 ft is not a cruise signal. It is usually either early climb
-  // or final arrival preparation. We still do not expose altitude in the UI.
   if (altitudeFeet <= APPROACH_ALTITUDE_FEET) {
-    if (isClimbing || elapsed <= TAKEOFF_MINUTES) return "early_flight";
-    return "arrival_window";
+    if (isClimbing || elapsed <= TAKEOFF_MINUTES || progressPercent < 20) return "early_flight";
+    if (veryNearDestination || (remainingMinutes !== undefined && remainingMinutes <= approachMinutes + 5)) {
+      return "arrival_window";
+    }
+    return "late_flight";
   }
 
   if (altitudeFeet <= LOW_ALTITUDE_FEET) {
-    if (isClimbing) return "early_flight";
-    if (isDescending) return "late_flight";
-
-    if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes + 5) {
-      return "arrival_window";
-    }
-
-    if (remainingMinutes !== undefined && remainingMinutes <= descentMinutes + 10) {
-      return "late_flight";
-    }
-
-    return "early_flight";
+    if (isClimbing && progressPercent < 35) return "early_flight";
+    if (isDescending || nearDestination) return "late_flight";
+    if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes + 5) return "arrival_window";
+    if (remainingMinutes !== undefined && remainingMinutes <= descentMinutes + 10) return "late_flight";
+    return progressPercent < 30 ? "early_flight" : "cruise";
   }
 
-  // High altitude is a strong signal that the flight has moved beyond the early
-  // climb. Even if the aircraft is still climbing slightly, a passenger-facing
-  // guidance app should treat this as cruise unless arrival is already near.
   if (altitudeFeet >= highAltitudeCruiseThresholdFeet(targetAltitudeFeet)) {
-    if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes) {
+    if (veryNearDestination && isDescending) return "late_flight";
+    if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes && isDescending) {
       return "arrival_window";
     }
-
-    if (isDescending && remainingMinutes !== undefined && remainingMinutes <= descentMinutes + 10) {
+    if (isDescending && (nearDestination || (remainingMinutes !== undefined && remainingMinutes <= descentMinutes + 10))) {
       return "late_flight";
     }
-
     return "cruise";
   }
+
+  if (isDescending && nearDestination) return "late_flight";
+  if (isClimbing && progressPercent < 35) return "early_flight";
+  if (progressPercent >= 35 && progressPercent < 85) return "cruise";
 
   return undefined;
 }
@@ -168,19 +156,10 @@ export function getFlightStatus(
   liveAltitudeFeet?: number,
   liveVerticalSpeedFeetPerMinute?: number
 ): FlightStatus {
-  if (isBeforeDeparture) {
-    return "before_departure";
-  }
+  if (isBeforeDeparture) return "before_departure";
+  if (isAfterArrival || progressPercent >= 100) return "completed";
 
-  if (isAfterArrival || progressPercent >= 100) {
-    return "completed";
-  }
-
-  const resolvedDurationMinutes = resolveDurationMinutes(
-    durationMinutes,
-    elapsedMinutes,
-    remainingMinutes
-  );
+  const resolvedDurationMinutes = resolveDurationMinutes(durationMinutes, elapsedMinutes, remainingMinutes);
   const targetAltitudeFeet = estimateTargetAltitudeFeet(resolvedDurationMinutes);
   const climbWindowMinutes = estimateClimbWindowMinutes(targetAltitudeFeet, resolvedDurationMinutes);
   const descentMinutes = estimateDescentMinutes(targetAltitudeFeet, resolvedDurationMinutes);
@@ -188,6 +167,7 @@ export function getFlightStatus(
   const liveAltitudePhase = resolveLiveAltitudePhase({
     altitudeFeet: liveAltitudeFeet,
     verticalSpeedFeetPerMinute: liveVerticalSpeedFeetPerMinute,
+    progressPercent,
     targetAltitudeFeet,
     elapsedMinutes,
     remainingMinutes,
@@ -197,22 +177,14 @@ export function getFlightStatus(
 
   if (liveAltitudePhase) return liveAltitudePhase;
 
-  // Fallback when live altitude is unavailable: calm timeline model.
-  if ((elapsedMinutes ?? 0) < TAKEOFF_MINUTES) {
-    return "early_flight";
-  }
-
-  if (remainingMinutes !== undefined && remainingMinutes <= approachMinutes) {
+  if ((elapsedMinutes ?? 0) < TAKEOFF_MINUTES) return "early_flight";
+  if (progressPercent >= 94 || (remainingMinutes !== undefined && remainingMinutes <= approachMinutes)) {
     return "arrival_window";
   }
-
-  if (remainingMinutes !== undefined && remainingMinutes <= descentMinutes) {
+  if (progressPercent >= 85 || (remainingMinutes !== undefined && remainingMinutes <= descentMinutes)) {
     return "late_flight";
   }
-
-  if (elapsedMinutes !== undefined && elapsedMinutes < climbWindowMinutes) {
-    return "early_flight";
-  }
-
+  if (progressPercent >= 30) return "cruise";
+  if (elapsedMinutes !== undefined && elapsedMinutes < climbWindowMinutes) return "early_flight";
   return "cruise";
 }
