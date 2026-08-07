@@ -15,6 +15,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { GuidanceModeBadge } from "@/components/flight/Sprint10Cards";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
+import { greatCircleRoute } from "@/features/maps/greatCircle";
+import {
+  clamp,
+  getEquirectangularImageStyle,
+  isRealCoordinate,
+  projectToViewport,
+  type MapPoint
+} from "@/features/maps/projection";
+import { computeMapViewport } from "@/features/maps/viewport";
 import { colors, radius, spacing, typography } from "@/theme";
 import type { Coordinates } from "@/types/route";
 
@@ -24,18 +33,6 @@ type JourneyStage = {
   label: string;
   icon: IoniconName;
   threshold: number;
-};
-
-type MapPoint = {
-  x: number;
-  y: number;
-};
-
-type MapViewport = {
-  minLongitude: number;
-  maxLongitude: number;
-  minLatitude: number;
-  maxLatitude: number;
 };
 
 type RouteSegmentData = {
@@ -51,17 +48,6 @@ const MAP_HEIGHT = 190;
 const EXPANDED_MAP_HEIGHT = 360;
 const ROUTE_SAMPLE_COUNT = 32;
 const WORLD_MAP = require("../../../assets/maps/map.png");
-
-// The generated 2:1 map is equirectangular, but its geographic grid sits
-// slightly inside the image because longitude/latitude labels occupy the edges.
-// Keeping these values normalized means the calibration still works if the
-// asset is resized while preserving the same aspect ratio.
-const WORLD_GEO_BOUNDS = {
-  left: 40 / 1728,
-  right: 1688 / 1728,
-  top: 57 / 864,
-  bottom: 819 / 864
-};
 
 const journeyStages: JourneyStage[] = [
   { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
@@ -79,152 +65,22 @@ function splitRoute(routeLabel: string) {
   };
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
 function asPercent(value: number): DimensionValue {
   return `${clamp(value, 0, 100)}%` as DimensionValue;
-}
-
-function isRealCoordinate(coordinates: Coordinates): boolean {
-  return coordinates.latitude !== 0 || coordinates.longitude !== 0;
-}
-
-function getRouteViewport(
-  origin: Coordinates,
-  destination: Coordinates,
-  width: number,
-  height: number
-): MapViewport {
-  if (!isRealCoordinate(origin) || !isRealCoordinate(destination)) {
-    return {
-      minLongitude: -180,
-      maxLongitude: 180,
-      minLatitude: -90,
-      maxLatitude: 90
-    };
-  }
-
-  const midpointLongitude = (origin.longitude + destination.longitude) / 2;
-  const midpointLatitude = (origin.latitude + destination.latitude) / 2;
-  let longitudeSpan = Math.max(Math.abs(destination.longitude - origin.longitude) * 1.65, 7.5);
-  let latitudeSpan = Math.max(Math.abs(destination.latitude - origin.latitude) * 1.65, 6.5);
-
-  const targetAspect = width / height;
-  const currentAspect = longitudeSpan / latitudeSpan;
-
-  if (currentAspect < targetAspect) {
-    longitudeSpan = latitudeSpan * targetAspect;
-  } else {
-    latitudeSpan = longitudeSpan / targetAspect;
-  }
-
-  longitudeSpan = Math.min(longitudeSpan, 360);
-  latitudeSpan = Math.min(latitudeSpan, 180);
-
-  let minLongitude = midpointLongitude - longitudeSpan / 2;
-  let maxLongitude = midpointLongitude + longitudeSpan / 2;
-  let minLatitude = midpointLatitude - latitudeSpan / 2;
-  let maxLatitude = midpointLatitude + latitudeSpan / 2;
-
-  if (minLongitude < -180) {
-    maxLongitude += -180 - minLongitude;
-    minLongitude = -180;
-  }
-  if (maxLongitude > 180) {
-    minLongitude -= maxLongitude - 180;
-    maxLongitude = 180;
-  }
-  if (minLatitude < -90) {
-    maxLatitude += -90 - minLatitude;
-    minLatitude = -90;
-  }
-  if (maxLatitude > 90) {
-    minLatitude -= maxLatitude - 90;
-    maxLatitude = 90;
-  }
-
-  return { minLongitude, maxLongitude, minLatitude, maxLatitude };
-}
-
-function projectToViewport(
-  coordinates: Coordinates,
-  viewport: MapViewport,
-  width: number,
-  height: number
-): MapPoint {
-  const longitude = clamp(coordinates.longitude, viewport.minLongitude, viewport.maxLongitude);
-  const latitude = clamp(coordinates.latitude, viewport.minLatitude, viewport.maxLatitude);
-
-  return {
-    x: ((longitude - viewport.minLongitude) / (viewport.maxLongitude - viewport.minLongitude)) * width,
-    y: ((viewport.maxLatitude - latitude) / (viewport.maxLatitude - viewport.minLatitude)) * height
-  };
-}
-
-function getWorldImageStyle(viewport: MapViewport, width: number, height: number) {
-  const longitudeSpan = viewport.maxLongitude - viewport.minLongitude;
-  const latitudeSpan = viewport.maxLatitude - viewport.minLatitude;
-  const geographicWidthFraction = WORLD_GEO_BOUNDS.right - WORLD_GEO_BOUNDS.left;
-  const geographicHeightFraction = WORLD_GEO_BOUNDS.bottom - WORLD_GEO_BOUNDS.top;
-
-  // Scale the complete source image so that the requested geographic viewport
-  // fills the canvas. The extra factor compensates for the label margins that
-  // sit outside the actual -180..180 / 90..-90 grid.
-  const imageWidth = width * (360 / longitudeSpan) / geographicWidthFraction;
-  const imageHeight = height * (180 / latitudeSpan) / geographicHeightFraction;
-  const geographicImageWidth = imageWidth * geographicWidthFraction;
-  const geographicImageHeight = imageHeight * geographicHeightFraction;
-
-  const viewportLeftInImage =
-    WORLD_GEO_BOUNDS.left * imageWidth +
-    ((viewport.minLongitude + 180) / 360) * geographicImageWidth;
-  const viewportTopInImage =
-    WORLD_GEO_BOUNDS.top * imageHeight +
-    ((90 - viewport.maxLatitude) / 180) * geographicImageHeight;
-
-  return {
-    width: imageWidth,
-    height: imageHeight,
-    left: -viewportLeftInImage,
-    top: -viewportTopInImage
-  };
 }
 
 function fallbackPoint(x: number, y: number, width: number, height: number): MapPoint {
   return { x: width * x, y: height * y };
 }
 
-function routeControlPoint(origin: MapPoint, destination: MapPoint): MapPoint {
-  const midpoint = {
-    x: (origin.x + destination.x) / 2,
-    y: (origin.y + destination.y) / 2
-  };
-  const deltaX = destination.x - origin.x;
-  const deltaY = destination.y - origin.y;
-  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-  const curve = clamp(distance * 0.16, 12, 46);
-
-  return {
-    x: midpoint.x,
-    y: midpoint.y - curve
-  };
-}
-
-function bezierPoint(origin: MapPoint, control: MapPoint, destination: MapPoint, progress: number): MapPoint {
-  const inverse = 1 - progress;
-  return {
-    x: inverse * inverse * origin.x + 2 * inverse * progress * control.x + progress * progress * destination.x,
-    y: inverse * inverse * origin.y + 2 * inverse * progress * control.y + progress * progress * destination.y
-  };
-}
-
-function projectedRoute(origin: MapPoint, destination: MapPoint): MapPoint[] {
-  const control = routeControlPoint(origin, destination);
-  return Array.from({ length: ROUTE_SAMPLE_COUNT }, (_, index) =>
-    bezierPoint(origin, control, destination, index / (ROUTE_SAMPLE_COUNT - 1))
-  );
+function fallbackRoute(origin: MapPoint, destination: MapPoint): MapPoint[] {
+  return Array.from({ length: ROUTE_SAMPLE_COUNT }, (_, index) => {
+    const progress = index / (ROUTE_SAMPLE_COUNT - 1);
+    return {
+      x: origin.x + (destination.x - origin.x) * progress,
+      y: origin.y + (destination.y - origin.y) * progress
+    };
+  });
 }
 
 function routeSegments(points: MapPoint[]): RouteSegmentData[] {
@@ -334,8 +190,8 @@ function RouteMapCanvas({
   percent: number;
   expanded?: boolean;
 }) {
-  const viewport = getRouteViewport(originCoordinates, destinationCoordinates, width, height);
-  const imageStyle = getWorldImageStyle(viewport, width, height);
+  const viewport = computeMapViewport(originCoordinates, destinationCoordinates, width, height);
+  const imageStyle = getEquirectangularImageStyle(viewport, width, height);
   const hasCoordinates = isRealCoordinate(originCoordinates) && isRealCoordinate(destinationCoordinates);
   const originPoint = hasCoordinates
     ? projectToViewport(originCoordinates, viewport, width, height)
@@ -343,7 +199,11 @@ function RouteMapCanvas({
   const destinationPoint = hasCoordinates
     ? projectToViewport(destinationCoordinates, viewport, width, height)
     : fallbackPoint(0.7, 0.42, width, height);
-  const routePoints = projectedRoute(originPoint, destinationPoint);
+  const routePoints = hasCoordinates
+    ? greatCircleRoute(originCoordinates, destinationCoordinates, ROUTE_SAMPLE_COUNT).map((coordinates) =>
+        projectToViewport(coordinates, viewport, width, height)
+      )
+    : fallbackRoute(originPoint, destinationPoint);
   const segments = routeSegments(routePoints);
   const planePoint = routePoints[Math.round((routePoints.length - 1) * (percent / 100))] ?? originPoint;
 
