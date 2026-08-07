@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 import { colors, spacing, typography } from "@/theme";
 
@@ -70,11 +70,19 @@ export default function FlightTabsLayout() {
         }}
       />
 
-      <Tabs.Screen 
+      <Tabs.Screen
         name="next-moment"
         options={{
           href: null,
           title: "Next moment"
+        }}
+      />
+
+      <Tabs.Screen
+        name="calm"
+        options={{
+          href: null,
+          title: "Calm mode"
         }}
       />
 
