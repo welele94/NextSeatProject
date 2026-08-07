@@ -1,6 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from "react-native";
 import type { DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -23,6 +33,13 @@ type MapPoint = {
   y: number;
 };
 
+type MapViewport = {
+  minLongitude: number;
+  maxLongitude: number;
+  minLatitude: number;
+  maxLatitude: number;
+};
+
 type RouteSegmentData = {
   id: string;
   left: number;
@@ -32,9 +49,9 @@ type RouteSegmentData = {
 };
 
 const MAP_WIDTH = 342;
-const MAP_HEIGHT = 173;
+const MAP_HEIGHT = 190;
 const ROUTE_SAMPLE_COUNT = 32;
-const WORLD_MAP = require("../../../assets/maps/map.PNG");
+const WORLD_MAP = require("../../../assets/maps/map.png");
 
 const journeyStages: JourneyStage[] = [
   { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
@@ -64,18 +81,97 @@ function isRealCoordinate(coordinates: Coordinates): boolean {
   return coordinates.latitude !== 0 || coordinates.longitude !== 0;
 }
 
-function projectToWorldMap(coordinates: Coordinates): MapPoint {
-  const longitude = clamp(coordinates.longitude, -180, 180);
-  const latitude = clamp(coordinates.latitude, -90, 90);
+function getRouteViewport(
+  origin: Coordinates,
+  destination: Coordinates,
+  width: number,
+  height: number
+): MapViewport {
+  if (!isRealCoordinate(origin) || !isRealCoordinate(destination)) {
+    return {
+      minLongitude: -180,
+      maxLongitude: 180,
+      minLatitude: -90,
+      maxLatitude: 90
+    };
+  }
+
+  const midpointLongitude = (origin.longitude + destination.longitude) / 2;
+  const midpointLatitude = (origin.latitude + destination.latitude) / 2;
+
+  // Keep enough context around short routes (for example Porto → Faro),
+  // while longer routes naturally show a wider region.
+  let longitudeSpan = Math.max(Math.abs(destination.longitude - origin.longitude) * 1.65, 7.5);
+  let latitudeSpan = Math.max(Math.abs(destination.latitude - origin.latitude) * 1.65, 6.5);
+
+  const targetAspect = width / height;
+  const currentAspect = longitudeSpan / latitudeSpan;
+
+  if (currentAspect < targetAspect) {
+    longitudeSpan = latitudeSpan * targetAspect;
+  } else {
+    latitudeSpan = longitudeSpan / targetAspect;
+  }
+
+  longitudeSpan = Math.min(longitudeSpan, 360);
+  latitudeSpan = Math.min(latitudeSpan, 180);
+
+  let minLongitude = midpointLongitude - longitudeSpan / 2;
+  let maxLongitude = midpointLongitude + longitudeSpan / 2;
+  let minLatitude = midpointLatitude - latitudeSpan / 2;
+  let maxLatitude = midpointLatitude + latitudeSpan / 2;
+
+  if (minLongitude < -180) {
+    maxLongitude += -180 - minLongitude;
+    minLongitude = -180;
+  }
+  if (maxLongitude > 180) {
+    minLongitude -= maxLongitude - 180;
+    maxLongitude = 180;
+  }
+  if (minLatitude < -90) {
+    maxLatitude += -90 - minLatitude;
+    minLatitude = -90;
+  }
+  if (maxLatitude > 90) {
+    minLatitude -= maxLatitude - 90;
+    maxLatitude = 90;
+  }
+
+  return { minLongitude, maxLongitude, minLatitude, maxLatitude };
+}
+
+function projectToViewport(
+  coordinates: Coordinates,
+  viewport: MapViewport,
+  width: number,
+  height: number
+): MapPoint {
+  const longitude = clamp(coordinates.longitude, viewport.minLongitude, viewport.maxLongitude);
+  const latitude = clamp(coordinates.latitude, viewport.minLatitude, viewport.maxLatitude);
 
   return {
-    x: ((longitude + 180) / 360) * MAP_WIDTH,
-    y: ((90 - latitude) / 180) * MAP_HEIGHT
+    x: ((longitude - viewport.minLongitude) / (viewport.maxLongitude - viewport.minLongitude)) * width,
+    y: ((viewport.maxLatitude - latitude) / (viewport.maxLatitude - viewport.minLatitude)) * height
   };
 }
 
-function fallbackPoint(x: number, y: number): MapPoint {
-  return { x: MAP_WIDTH * x, y: MAP_HEIGHT * y };
+function getWorldImageStyle(viewport: MapViewport, width: number, height: number) {
+  const longitudeSpan = viewport.maxLongitude - viewport.minLongitude;
+  const latitudeSpan = viewport.maxLatitude - viewport.minLatitude;
+  const imageWidth = width * (360 / longitudeSpan);
+  const imageHeight = height * (180 / latitudeSpan);
+
+  return {
+    width: imageWidth,
+    height: imageHeight,
+    left: -((viewport.minLongitude + 180) / 360) * imageWidth,
+    top: -((90 - viewport.maxLatitude) / 180) * imageHeight
+  };
+}
+
+function fallbackPoint(x: number, y: number, width: number, height: number): MapPoint {
+  return { x: width * x, y: height * y };
 }
 
 function routeControlPoint(origin: MapPoint, destination: MapPoint): MapPoint {
@@ -86,7 +182,7 @@ function routeControlPoint(origin: MapPoint, destination: MapPoint): MapPoint {
   const deltaX = destination.x - origin.x;
   const deltaY = destination.y - origin.y;
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-  const curve = clamp(distance * 0.16, 12, 38);
+  const curve = clamp(distance * 0.16, 12, 46);
 
   return {
     x: midpoint.x,
@@ -178,11 +274,76 @@ function RouteSegment({ segment }: { segment: RouteSegmentData }) {
   );
 }
 
-function LocationMarker({ point, label }: { point: MapPoint; label: string }) {
+function LocationMarker({ point, label, expanded = false }: { point: MapPoint; label: string; expanded?: boolean }) {
   return (
-    <View style={[styles.locationMarker, { left: point.x, top: point.y }]}> 
-      <View style={styles.markerDot} />
-      <Text style={styles.markerLabel}>{label}</Text>
+    <View
+      style={[
+        styles.locationMarker,
+        expanded && styles.locationMarkerExpanded,
+        { left: point.x, top: point.y }
+      ]}
+    >
+      <View style={[styles.markerDot, expanded && styles.markerDotExpanded]} />
+      <Text style={[styles.markerLabel, expanded && styles.markerLabelExpanded]}>{label}</Text>
+    </View>
+  );
+}
+
+function RouteMapCanvas({
+  width,
+  height,
+  origin,
+  destination,
+  originCode,
+  destinationCode,
+  originCoordinates,
+  destinationCoordinates,
+  percent,
+  expanded = false
+}: {
+  width: number;
+  height: number;
+  origin: string;
+  destination: string;
+  originCode: string;
+  destinationCode: string;
+  originCoordinates: Coordinates;
+  destinationCoordinates: Coordinates;
+  percent: number;
+  expanded?: boolean;
+}) {
+  const viewport = getRouteViewport(originCoordinates, destinationCoordinates, width, height);
+  const imageStyle = getWorldImageStyle(viewport, width, height);
+  const hasCoordinates = isRealCoordinate(originCoordinates) && isRealCoordinate(destinationCoordinates);
+  const originPoint = hasCoordinates
+    ? projectToViewport(originCoordinates, viewport, width, height)
+    : fallbackPoint(0.3, 0.58, width, height);
+  const destinationPoint = hasCoordinates
+    ? projectToViewport(destinationCoordinates, viewport, width, height)
+    : fallbackPoint(0.7, 0.42, width, height);
+  const routePoints = projectedRoute(originPoint, destinationPoint);
+  const segments = routeSegments(routePoints);
+  const planePoint = routePoints[Math.round((routePoints.length - 1) * (percent / 100))] ?? originPoint;
+
+  return (
+    <View style={[styles.mapCanvas, { width, height }, expanded && styles.mapCanvasExpanded]}>
+      <Image source={WORLD_MAP} resizeMode="stretch" style={[styles.mapImage, imageStyle]} />
+      <View pointerEvents="none" style={styles.mapOverlay} />
+      {segments.map((segment) => <RouteSegment key={segment.id} segment={segment} />)}
+      <LocationMarker point={originPoint} label={originCode || origin} expanded={expanded} />
+      <LocationMarker point={destinationPoint} label={destinationCode || destination} expanded={expanded} />
+      <View
+        style={[
+          styles.mapPlane,
+          expanded && styles.mapPlaneExpanded,
+          { left: planePoint.x, top: planePoint.y }
+        ]}
+      >
+        <Ionicons name="airplane" size={expanded ? 24 : 20} color={colors.white} />
+      </View>
+      <View style={styles.mapCaptionPill}>
+        <Text style={styles.mapCaptionText}>Offline map · not live tracking</Text>
+      </View>
     </View>
   );
 }
@@ -204,12 +365,10 @@ function OfflineRouteMap({
   destinationCoordinates: Coordinates;
   percent: number;
 }) {
-  const hasCoordinates = isRealCoordinate(originCoordinates) && isRealCoordinate(destinationCoordinates);
-  const originPoint = hasCoordinates ? projectToWorldMap(originCoordinates) : fallbackPoint(0.35, 0.5);
-  const destinationPoint = hasCoordinates ? projectToWorldMap(destinationCoordinates) : fallbackPoint(0.65, 0.42);
-  const routePoints = projectedRoute(originPoint, destinationPoint);
-  const segments = routeSegments(routePoints);
-  const planePoint = routePoints[Math.round((routePoints.length - 1) * (percent / 100))] ?? originPoint;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const expandedWidth = Math.min(Math.max(windowWidth - 32, 300), 720);
+  const expandedHeight = Math.min(Math.max(windowHeight - 190, 330), 620);
 
   return (
     <View style={styles.mapCard}>
@@ -222,19 +381,66 @@ function OfflineRouteMap({
         </View>
       </View>
 
-      <View style={styles.mapFrame}> 
-        <Image source={WORLD_MAP} resizeMode="stretch" style={styles.mapImage} />
-        <View pointerEvents="none" style={styles.mapOverlay} />
-        {segments.map((segment) => <RouteSegment key={segment.id} segment={segment} />)}
-        <LocationMarker point={originPoint} label={originCode || origin} />
-        <LocationMarker point={destinationPoint} label={destinationCode || destination} />
-        <View style={[styles.mapPlane, { left: planePoint.x, top: planePoint.y }]}> 
-          <Ionicons name="airplane" size={20} color={colors.white} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open route map"
+        onPress={() => setIsExpanded(true)}
+        style={({ pressed }) => [styles.mapFrame, pressed && styles.mapPressed]}
+      >
+        <RouteMapCanvas
+          width={MAP_WIDTH}
+          height={MAP_HEIGHT}
+          origin={origin}
+          destination={destination}
+          originCode={originCode}
+          destinationCode={destinationCode}
+          originCoordinates={originCoordinates}
+          destinationCoordinates={destinationCoordinates}
+          percent={percent}
+        />
+        <View style={styles.expandButton}>
+          <Ionicons name="expand-outline" size={18} color={colors.primaryBlue} />
         </View>
-        <View style={styles.mapCaptionPill}>
-          <Text style={styles.mapCaptionText}>Offline map · not live tracking</Text>
-        </View>
-      </View>
+      </Pressable>
+
+      <Modal
+        visible={isExpanded}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsExpanded(false)}
+      >
+        <SafeAreaView style={styles.modalBackdrop}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalEyebrow}>Planned route view</Text>
+              <Text style={styles.modalTitle}>{origin} → {destination}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close map"
+              onPress={() => setIsExpanded(false)}
+              style={({ pressed }) => [styles.closeButton, pressed && styles.mapPressed]}
+            >
+              <Ionicons name="close" size={24} color={colors.primaryBlue} />
+            </Pressable>
+          </View>
+
+          <RouteMapCanvas
+            width={expandedWidth}
+            height={expandedHeight}
+            origin={origin}
+            destination={destination}
+            originCode={originCode}
+            destinationCode={destinationCode}
+            originCoordinates={originCoordinates}
+            destinationCoordinates={destinationCoordinates}
+            percent={percent}
+            expanded
+          />
+
+          <Text style={styles.modalNote}>Based on the flight saved on this device.</Text>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -242,7 +448,7 @@ function OfflineRouteMap({
 function PhaseProgressCard({ percent, activeIndex }: { percent: number; activeIndex: number }) {
   return (
     <View style={styles.card}>
-      <View style={styles.phaseTrack}> 
+      <View style={styles.phaseTrack}>
         <View style={styles.phaseLine} />
         <View style={[styles.phaseLineFill, { width: asPercent(percent) }]} />
         {journeyStages.map((stage, index) => {
@@ -251,7 +457,7 @@ function PhaseProgressCard({ percent, activeIndex }: { percent: number; activeIn
           const isArrived = percent >= 100;
           const activeColor = isArrived ? colors.successGreen : colors.skyBlueStrong;
           return (
-            <View key={stage.label} style={[styles.stageItem, { left: asPercent(stage.threshold) }]}> 
+            <View key={stage.label} style={[styles.stageItem, { left: asPercent(stage.threshold) }]}>
               <View
                 style={[
                   styles.stageIcon,
@@ -259,14 +465,22 @@ function PhaseProgressCard({ percent, activeIndex }: { percent: number; activeIn
                   isCurrent && styles.stageIconCurrent
                 ]}
               >
-                <Ionicons name={stage.icon} size={isCurrent ? 24 : 19} color={(isCompleted || isCurrent) ? colors.white : "#8AA3C2"} />
+                <Ionicons
+                  name={stage.icon}
+                  size={isCurrent ? 24 : 19}
+                  color={(isCompleted || isCurrent) ? colors.white : "#8AA3C2"}
+                />
               </View>
-              <Text style={[styles.stageLabel, isCurrent && { color: activeColor, fontWeight: "800" }]}>{stage.label}</Text>
+              <Text style={[styles.stageLabel, isCurrent && { color: activeColor, fontWeight: "800" }]}>
+                {stage.label}
+              </Text>
             </View>
           );
         })}
       </View>
-      <Text style={[styles.progressNumber, { color: percent >= 100 ? colors.successGreen : colors.skyBlueStrong }]}>{percent}%</Text>
+      <Text style={[styles.progressNumber, { color: percent >= 100 ? colors.successGreen : colors.skyBlueStrong }]}>
+        {percent}%
+      </Text>
       <Text style={styles.progressCaption}>of journey</Text>
     </View>
   );
@@ -356,15 +570,29 @@ const styles = StyleSheet.create({
   flightBadge: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, backgroundColor: "rgba(255, 255, 255, 0.88)", borderWidth: 1, borderColor: "rgba(18, 102, 227, 0.14)" },
   flightBadgeText: { ...typography.caption, color: colors.skyBlueStrong, fontWeight: "800" },
   mapFrame: { width: MAP_WIDTH, height: MAP_HEIGHT, borderRadius: 24, overflow: "hidden", position: "relative", borderWidth: 2, borderColor: "rgba(255, 255, 255, 0.88)", backgroundColor: "#B5DDF4", shadowColor: colors.primaryBlue, shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
-  mapImage: { position: "absolute", top: 0, left: 0, width: MAP_WIDTH, height: MAP_HEIGHT, opacity: 0.96 },
+  mapCanvas: { overflow: "hidden", position: "relative", backgroundColor: "#B5DDF4" },
+  mapCanvasExpanded: { borderRadius: radius.xl, borderWidth: 1, borderColor: "rgba(255,255,255,0.8)" },
+  mapImage: { position: "absolute", opacity: 0.96 },
   mapOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(234, 245, 255, 0.08)" },
   routeSegment: { position: "absolute", height: 3, borderRadius: radius.pill, backgroundColor: colors.skyBlueStrong, shadowColor: colors.skyBlueStrong, shadowOpacity: 0.24, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
   mapPlane: { position: "absolute", width: 34, height: 34, marginLeft: -17, marginTop: -17, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: colors.skyBlueStrong, shadowColor: colors.primaryBlue, shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  mapPlaneExpanded: { width: 42, height: 42, marginLeft: -21, marginTop: -21 },
   locationMarker: { position: "absolute", alignItems: "center", gap: 2, marginLeft: -28, marginTop: -9, width: 56 },
+  locationMarkerExpanded: { width: 76, marginLeft: -38, marginTop: -12 },
   markerDot: { width: 14, height: 14, borderRadius: radius.pill, backgroundColor: colors.skyBlueStrong, borderWidth: 3, borderColor: colors.white },
+  markerDotExpanded: { width: 18, height: 18, borderWidth: 4 },
   markerLabel: { ...typography.caption, color: colors.textPrimary, fontSize: 11, lineHeight: 14, fontWeight: "800", backgroundColor: "rgba(255,255,255,0.92)", borderRadius: radius.sm, paddingHorizontal: 5, paddingVertical: 1, overflow: "hidden" },
+  markerLabelExpanded: { fontSize: 13, lineHeight: 16, paddingHorizontal: 7, paddingVertical: 3 },
   mapCaptionPill: { position: "absolute", left: spacing.sm, bottom: spacing.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.92)", borderWidth: 1, borderColor: "rgba(13,59,140,0.10)" },
   mapCaptionText: { ...typography.caption, color: colors.textPrimary, fontSize: 11, lineHeight: 14, fontWeight: "700" },
+  expandButton: { position: "absolute", top: spacing.sm, right: spacing.sm, width: 34, height: 34, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.94)", borderWidth: 1, borderColor: "rgba(13,59,140,0.10)" },
+  mapPressed: { opacity: 0.9 },
+  modalBackdrop: { flex: 1, backgroundColor: "#EAF5FF", alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.lg },
+  modalHeader: { width: "100%", maxWidth: 720, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.lg },
+  modalEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
+  modalTitle: { ...typography.title, color: colors.textPrimary, marginTop: spacing.xs },
+  closeButton: { width: 44, height: 44, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", backgroundColor: colors.white, borderWidth: 1, borderColor: "rgba(13,59,140,0.12)" },
+  modalNote: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
   card: { gap: spacing.lg, padding: spacing.xl, borderRadius: radius.xl, backgroundColor: "rgba(255,255,255,0.94)", borderWidth: 1.2, borderColor: "rgba(13,59,140,0.18)", shadowColor: colors.primaryBlue, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
   phaseTrack: { height: 82, position: "relative", justifyContent: "center", marginHorizontal: 10 },
   phaseLine: { position: "absolute", left: 0, right: 0, top: 30, height: 3, borderRadius: radius.pill, backgroundColor: "#D6E4F5" },
