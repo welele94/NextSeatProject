@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
@@ -10,6 +10,11 @@ import { colors, radius, spacing, typography } from "@/theme";
 
 type CalmMode = "breathe" | "focus" | "explain";
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
+type BreathStep = "inhale" | "exhale";
+
+const INHALE_MS = 4000;
+const EXHALE_MS = 6000;
 
 const modes: Array<{
   id: CalmMode;
@@ -38,25 +43,81 @@ const modes: Array<{
 ];
 
 function BreathingExercise() {
-  const [step, setStep] = useState<"inhale" | "exhale">("inhale");
+  const [step, setStep] = useState<BreathStep>("inhale");
+  const scale = useRef(new Animated.Value(0.82)).current;
+  const glowOpacity = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    let active = true;
+
+    function runInhale() {
+      if (!active) return;
+      setStep("inhale");
+
+      Animated.parallel([
+        Animated.timing(scale, {
+          toValue: 1.08,
+          duration: INHALE_MS,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true
+        }),
+        Animated.timing(glowOpacity, {
+          toValue: 0.78,
+          duration: INHALE_MS,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true
+        })
+      ]).start(({ finished }) => {
+        if (finished && active) runExhale();
+      });
+    }
+
+    function runExhale() {
+      if (!active) return;
+      setStep("exhale");
+
+      Animated.parallel([
+        Animated.timing(scale, {
+          toValue: 0.82,
+          duration: EXHALE_MS,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true
+        }),
+        Animated.timing(glowOpacity, {
+          toValue: 0.35,
+          duration: EXHALE_MS,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true
+        })
+      ]).start(({ finished }) => {
+        if (finished && active) runInhale();
+      });
+    }
+
+    runInhale();
+
+    return () => {
+      active = false;
+      scale.stopAnimation();
+      glowOpacity.stopAnimation();
+    };
+  }, [glowOpacity, scale]);
 
   return (
     <View style={styles.exerciseCard}>
-      <View style={styles.breathCircle}>
-        <Text style={styles.breathWord}>{step === "inhale" ? "Breathe in" : "Breathe out"}</Text>
-        <Text style={styles.breathTiming}>{step === "inhale" ? "4 seconds" : "6 seconds"}</Text>
+      <View style={styles.breathStage}>
+        <Animated.View style={[styles.breathGlow, { opacity: glowOpacity, transform: [{ scale }] }]} />
+        <Animated.View style={[styles.breathCircle, { transform: [{ scale }] }]}>
+          <Text style={styles.breathWord}>{step === "inhale" ? "Breathe in" : "Breathe out"}</Text>
+          <Text style={styles.breathTiming}>{step === "inhale" ? "4 seconds" : "6 seconds"}</Text>
+        </Animated.View>
       </View>
-      <Text style={styles.exerciseTitle}>Keep it gentle</Text>
+
+      <Text style={styles.exerciseTitle}>Follow the circle</Text>
       <Text style={styles.exerciseBody}>
-        Breathe in comfortably, then let the breath out a little more slowly. You do not need to fill your lungs or hold your breath.
+        Let the circle guide you. Breathe in as it expands, then breathe out slowly as it becomes smaller. You do not need to force a deep breath.
       </Text>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setStep((current) => (current === "inhale" ? "exhale" : "inhale"))}
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.primaryButtonText}>Next breath</Text>
-      </Pressable>
+      <Text style={styles.smallNote}>The rhythm continues automatically. Just follow it for as long as it feels useful.</Text>
     </View>
   );
 }
@@ -201,28 +262,30 @@ const styles = StyleSheet.create({
   exerciseEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
   exerciseTitle: { ...typography.section, color: colors.textPrimary, fontSize: 22, lineHeight: 28 },
   exerciseBody: { ...typography.body, color: colors.textPrimary, lineHeight: 25 },
+  breathStage: {
+    height: 238,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  breathGlow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "#EAF3FF"
+  },
   breathCircle: {
-    width: 210,
-    height: 210,
-    alignSelf: "center",
+    width: 190,
+    height: 190,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 105,
+    borderRadius: 95,
     backgroundColor: "#DDEBFF",
-    borderWidth: 10,
+    borderWidth: 8,
     borderColor: "#F4F8FF"
   },
   breathWord: { ...typography.section, color: colors.primaryBlue, fontWeight: "800" },
   breathTiming: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
-  primaryButton: {
-    minHeight: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryBlue,
-    paddingHorizontal: spacing.xl
-  },
-  primaryButtonText: { ...typography.body, color: colors.white, fontWeight: "800" },
   focusArea: { height: 210, alignItems: "center", justifyContent: "center" },
   focusHalo: {
     width: 148,
