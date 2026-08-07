@@ -17,6 +17,7 @@ import { FlightSnapshot } from "./types";
 
 const emptyEnvironmentContext: EnvironmentContext = {};
 const PROVIDER_LANDED_TOLERANCE_MS = 5 * 60 * 1000;
+const LIVE_SIGNAL_MAX_AGE_MS = 60 * 60 * 1000;
 
 function estimateDelayMinutes(progress: FlightProgress): number | undefined {
   if (progress.isBeforeDeparture || progress.isAfterArrival) return undefined;
@@ -103,7 +104,7 @@ function buildJourneyInformation(flight: Flight, progress: FlightProgress): Jour
     aircraftLabel: flight.aircraftType,
     estimatedDurationMinutes: flight.schedule.estimatedDurationMinutes,
     remainingMinutes: progress.remainingMinutes,
-    completedPercent: progress.progressPercent
+    completedPercent: progress.displayedProgressPercent
   };
 }
 
@@ -119,6 +120,15 @@ function providerStatusIsActive(flight: Flight): boolean {
   );
 }
 
+function liveSignalsAreRecent(flight: Flight, currentTime: Date): boolean {
+  const reportedAt = flight.operations?.livePositionReportedAtUtc;
+  if (!reportedAt) return false;
+  const reportedAtMs = Date.parse(reportedAt);
+  if (Number.isNaN(reportedAtMs)) return false;
+  const ageMs = currentTime.getTime() - reportedAtMs;
+  return ageMs >= 0 && ageMs <= LIVE_SIGNAL_MAX_AGE_MS;
+}
+
 function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgress): FlightStatus {
   const arrivalMs = resolveArrivalMs(flight);
   const arrivalPassed = arrivalMs !== undefined && currentTime.getTime() >= arrivalMs;
@@ -132,15 +142,17 @@ function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgre
 
   if (timelineSaysArrived || providerLandedIsPlausible) return "completed";
 
+  const useLiveSignals = liveSignalsAreRecent(flight, currentTime);
+
   return getFlightStatus(
-    progress.progressPercent,
+    progress.displayedProgressPercent,
     progress.isBeforeDeparture,
     false,
     flight.schedule.estimatedDurationMinutes,
     progress.elapsedMinutes,
     progress.remainingMinutes,
-    flight.operations?.liveAltitudeFeet,
-    flight.operations?.liveVerticalSpeedFeetPerMinute
+    useLiveSignals ? flight.operations?.liveAltitudeFeet : undefined,
+    useLiveSignals ? flight.operations?.liveVerticalSpeedFeetPerMinute : undefined
   );
 }
 
@@ -157,8 +169,8 @@ export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSn
       }
     : { ...rawProgress, isAfterArrival: false };
 
-  const currentCheckpoint = getCurrentCheckpoint(flight.checkpoints, progress.progressPercent);
-  const nextCheckpoint = getNextCheckpoint(flight.checkpoints, progress.progressPercent);
+  const currentCheckpoint = getCurrentCheckpoint(flight.checkpoints, progress.displayedProgressPercent);
+  const nextCheckpoint = getNextCheckpoint(flight.checkpoints, progress.displayedProgressPercent);
   const phase = resolveJourneyPhase(status);
   const journey = buildJourneyInformation(flight, progress);
   const delayedMinutes = estimateDelayMinutes(progress);
@@ -166,7 +178,7 @@ export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSn
   const situation = resolveSituation({
     flightStatus: status,
     remainingMinutes: progress.remainingMinutes,
-    progressPercent: progress.progressPercent,
+    progressPercent: progress.displayedProgressPercent,
     delayedMinutes
   });
 
@@ -174,7 +186,7 @@ export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSn
     flightStatus: status,
     situation,
     remainingMinutes: progress.remainingMinutes,
-    progressPercent: progress.progressPercent
+    progressPercent: progress.displayedProgressPercent
   });
 
   const guidance = resolveGuidanceState({ progress, status });
