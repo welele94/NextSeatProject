@@ -93,6 +93,8 @@ export default function FlightTabsLayout() {
         name="calm"
         options={{
           title: "Calm",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
           tabBarItemStyle: styles.calmTabItem,
           tabBarIcon: () => (
             <View style={styles.calmTabButton}>
