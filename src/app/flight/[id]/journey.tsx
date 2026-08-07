@@ -52,6 +52,17 @@ const EXPANDED_MAP_HEIGHT = 360;
 const ROUTE_SAMPLE_COUNT = 32;
 const WORLD_MAP = require("../../../assets/maps/map.png");
 
+// The generated 2:1 map is equirectangular, but its geographic grid sits
+// slightly inside the image because longitude/latitude labels occupy the edges.
+// Keeping these values normalized means the calibration still works if the
+// asset is resized while preserving the same aspect ratio.
+const WORLD_GEO_BOUNDS = {
+  left: 40 / 1728,
+  right: 1688 / 1728,
+  top: 57 / 864,
+  bottom: 819 / 864
+};
+
 const journeyStages: JourneyStage[] = [
   { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
   { label: "Takeoff", icon: "airplane", threshold: 15 },
@@ -155,14 +166,29 @@ function projectToViewport(
 function getWorldImageStyle(viewport: MapViewport, width: number, height: number) {
   const longitudeSpan = viewport.maxLongitude - viewport.minLongitude;
   const latitudeSpan = viewport.maxLatitude - viewport.minLatitude;
-  const imageWidth = width * (360 / longitudeSpan);
-  const imageHeight = height * (180 / latitudeSpan);
+  const geographicWidthFraction = WORLD_GEO_BOUNDS.right - WORLD_GEO_BOUNDS.left;
+  const geographicHeightFraction = WORLD_GEO_BOUNDS.bottom - WORLD_GEO_BOUNDS.top;
+
+  // Scale the complete source image so that the requested geographic viewport
+  // fills the canvas. The extra factor compensates for the label margins that
+  // sit outside the actual -180..180 / 90..-90 grid.
+  const imageWidth = width * (360 / longitudeSpan) / geographicWidthFraction;
+  const imageHeight = height * (180 / latitudeSpan) / geographicHeightFraction;
+  const geographicImageWidth = imageWidth * geographicWidthFraction;
+  const geographicImageHeight = imageHeight * geographicHeightFraction;
+
+  const viewportLeftInImage =
+    WORLD_GEO_BOUNDS.left * imageWidth +
+    ((viewport.minLongitude + 180) / 360) * geographicImageWidth;
+  const viewportTopInImage =
+    WORLD_GEO_BOUNDS.top * imageHeight +
+    ((90 - viewport.maxLatitude) / 180) * geographicImageHeight;
 
   return {
     width: imageWidth,
     height: imageHeight,
-    left: -((viewport.minLongitude + 180) / 360) * imageWidth,
-    top: -((90 - viewport.maxLatitude) / 180) * imageHeight
+    left: -viewportLeftInImage,
+    top: -viewportTopInImage
   };
 }
 
