@@ -52,6 +52,65 @@ function planeMarkerPercent(displayPercent: number): number {
   return clamp(displayPercent, 6, 94);
 }
 
+function formatRemainingTime(minutes: number): string {
+  const safeMinutes = Math.max(Math.round(minutes), 0);
+  const hours = Math.floor(safeMinutes / 60);
+  const remainingMinutes = safeMinutes % 60;
+
+  if (hours <= 0) return `${remainingMinutes} min`;
+  if (remainingMinutes === 0) return `${hours}h`;
+  return `${hours}h ${remainingMinutes}m`;
+}
+
+function FutureReassurance({
+  destination,
+  remainingMinutes,
+  isArrived
+}: {
+  destination: string;
+  remainingMinutes: number;
+  isArrived: boolean;
+}) {
+  const title = isArrived
+    ? `You’re in ${destination}.`
+    : `In about ${formatRemainingTime(remainingMinutes)}, you’ll be in ${destination}.`;
+
+  return (
+    <View style={styles.futureAnchor}>
+      <View style={styles.futureIcon}>
+        <Ionicons name={isArrived ? "checkmark" : "arrow-forward"} size={19} color={colors.primaryBlue} />
+      </View>
+      <View style={styles.futureCopy}>
+        <Text style={styles.futureEyebrow}>{isArrived ? "You made it" : "A little further ahead"}</Text>
+        <Text style={styles.futureTitle}>{title}</Text>
+        {!isArrived ? (
+          <Text style={styles.futureNote}>Based on the latest flight timing saved on this device.</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function CalmModeEntry({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.calmEntry, pressed && styles.pressed]}
+    >
+      <View style={styles.calmEntryIcon}>
+        <Ionicons name="heart-outline" size={22} color={colors.primaryBlue} />
+      </View>
+      <View style={styles.calmEntryCopy}>
+        <Text style={styles.calmEntryEyebrow}>Feeling anxious?</Text>
+        <Text style={styles.calmEntryTitle}>Open Calm mode</Text>
+        <Text style={styles.calmEntryBody}>Breathe, focus, or get a short explanation of what is happening now.</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.primaryBlue} />
+    </Pressable>
+  );
+}
+
 function CurrentJourneyPanel({
   routeLabel,
   phaseLabel,
@@ -169,11 +228,24 @@ export default function OverviewTab() {
     });
   }
 
+  function openCalmMode() {
+    router.push({
+      pathname: "/flight/[id]/calm" as never,
+      params: { id: safeSnapshot.flightSummary.id } as never
+    });
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: ui.phaseTheme.pageBackground }]}> 
       <SkyBackground accent={ui.phaseTheme.accent} isSuccess={isSuccess} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <GuidanceModeBadge confidenceLevel={ui.confidenceLevel} predictionMode={ui.predictionMode} />
+
+        <FutureReassurance
+          destination={snapshot.flightSummary.destinationLabel}
+          remainingMinutes={snapshot.progress.remainingMinutes}
+          isArrived={isSuccess}
+        />
 
         <CurrentJourneyPanel
           routeLabel={ui.routeLabel}
@@ -181,6 +253,8 @@ export default function OverviewTab() {
           progressPercent={snapshot.progress.progressPercent}
           onPress={openJourney}
         />
+
+        {!isSuccess ? <CalmModeEntry onPress={openCalmMode} /> : null}
 
         <View style={styles.heroSurface}>
           <StatusHeroCard
@@ -216,6 +290,51 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: 132
   },
+  futureAnchor: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.xl,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(13,59,140,0.10)"
+  },
+  futureIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F2FF"
+  },
+  futureCopy: { flex: 1, gap: 3 },
+  futureEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
+  futureTitle: { ...typography.section, color: colors.textPrimary, fontSize: 22, lineHeight: 28 },
+  futureNote: { ...typography.caption, color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
+  calmEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: "rgba(13,59,140,0.12)",
+    backgroundColor: "rgba(255,255,255,0.72)"
+  },
+  calmEntryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F2FF"
+  },
+  calmEntryCopy: { flex: 1, gap: 2 },
+  calmEntryEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
+  calmEntryTitle: { ...typography.body, color: colors.textPrimary, fontWeight: "800" },
+  calmEntryBody: { ...typography.caption, color: colors.textSecondary, lineHeight: 19 },
   journeyPanel: {
     gap: spacing.lg,
     paddingVertical: spacing.md,
