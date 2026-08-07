@@ -1,7 +1,7 @@
 import { Flight, FlightProgress } from "@/types/flight";
 import { JourneyInformation, JourneyPhase } from "@/types/journey";
 
-import { calculateFlightProgress } from "@/features/flightCore/calculateFlightProgress";
+import { computeFlightProgress } from "@/features/flightCore/computeFlightProgress";
 import { getCurrentCheckpoint } from "@/features/flightCore/getCurrentCheckpoint";
 import { FlightStatus, getFlightStatus } from "@/features/flightCore/getFlightStatus";
 import { getNextCheckpoint } from "@/features/flightCore/getNextCheckpoint";
@@ -145,10 +145,16 @@ function resolveStatus(flight: Flight, currentTime: Date, progress: FlightProgre
 }
 
 export function buildFlightSnapshot(flight: Flight, currentTime: Date): FlightSnapshot {
-  const rawProgress = calculateFlightProgress(flight, currentTime);
+  const rawProgress = computeFlightProgress(flight, currentTime);
   const status = resolveStatus(flight, currentTime, rawProgress);
   const progress: FlightProgress = status === "completed"
-    ? { ...rawProgress, progressPercent: 100, remainingMinutes: 0, isAfterArrival: true }
+    ? {
+        ...rawProgress,
+        progressPercent: 100,
+        displayedProgressPercent: 100,
+        remainingMinutes: 0,
+        isAfterArrival: true
+      }
     : { ...rawProgress, isAfterArrival: false };
 
   const currentCheckpoint = getCurrentCheckpoint(flight.checkpoints, progress.progressPercent);
