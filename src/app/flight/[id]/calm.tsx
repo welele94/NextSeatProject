@@ -14,7 +14,6 @@ type BreathStep = "prepare" | "inhale" | "exhale";
 const PREPARE_SECONDS = 3;
 const INHALE_SECONDS = 4;
 const EXHALE_SECONDS = 6;
-const CONTROLS_HIDE_MS = 4500;
 
 function BreathingExercise() {
   const [step, setStep] = useState<BreathStep>("prepare");
@@ -112,18 +111,62 @@ function BreathingExercise() {
           <Text style={styles.breathWord}>{instruction}</Text>
         </Animated.View>
       </View>
-      {step === "prepare" ? (
-        <Text style={styles.singleInstruction}>Just follow the circle.</Text>
-      ) : null}
+      {step === "prepare" ? <Text style={styles.singleInstruction}>Just follow the circle.</Text> : null}
     </View>
   );
 }
 
 function FocusExercise() {
+  const dotOpacity = useRef(new Animated.Value(1)).current;
+  const dotScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(dotOpacity, {
+            toValue: 0.28,
+            duration: 1800,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          }),
+          Animated.timing(dotScale, {
+            toValue: 0.86,
+            duration: 1800,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          })
+        ]),
+        Animated.parallel([
+          Animated.timing(dotOpacity, {
+            toValue: 1,
+            duration: 1800,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          }),
+          Animated.timing(dotScale, {
+            toValue: 1,
+            duration: 1800,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          })
+        ])
+      ])
+    );
+
+    pulse.start();
+    return () => pulse.stop();
+  }, [dotOpacity, dotScale]);
+
   return (
     <View style={styles.toolContent}>
       <View style={styles.focusHalo}>
-        <View style={styles.focusDot} />
+        <Animated.View
+          style={[
+            styles.focusDot,
+            { opacity: dotOpacity, transform: [{ scale: dotScale }] }
+          ]}
+        />
       </View>
       <Text style={styles.toolTitle}>Let your eyes rest here.</Text>
       <Text style={styles.toolBody}>Notice the seat supporting you and one thing you can physically feel.</Text>
@@ -154,25 +197,8 @@ export default function CalmModeScreen() {
   const { id } = useGlobalSearchParams<{ id: string }>();
   const { snapshot } = useFlightSnapshot();
   const [selectedMode, setSelectedMode] = useState<CalmMode>("breathe");
-  const [controlsVisible, setControlsVisible] = useState(false);
-  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const ui = useMemo(() => (snapshot ? buildFlightUiSnapshot(snapshot) : undefined), [snapshot]);
-
-  useEffect(() => {
-    if (!controlsVisible) return;
-
-    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    controlsTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_MS);
-
-    return () => {
-      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    };
-  }, [controlsVisible, selectedMode]);
-
-  function revealControls() {
-    setControlsVisible(true);
-  }
 
   function goBackToOverview() {
     if (!id) {
@@ -190,7 +216,7 @@ export default function CalmModeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Pressable accessibilityRole="button" onPress={revealControls} style={styles.immersiveArea}>
+      <View style={styles.immersiveArea}>
         <View pointerEvents="none" style={styles.softGlowTop} />
         <View pointerEvents="none" style={styles.softGlowBottom} />
 
@@ -204,90 +230,76 @@ export default function CalmModeScreen() {
           />
         ) : null}
 
-        {controlsVisible ? (
-          <View style={styles.controlsOverlay}>
+        <View pointerEvents="box-none" style={styles.controlsOverlay}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={goBackToOverview}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.primaryBlue} />
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
+
+          <View style={styles.toolSwitcher}>
             <Pressable
               accessibilityRole="button"
-              onPress={(event) => {
-                event.stopPropagation();
-                goBackToOverview();
-              }}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+              onPress={() => setSelectedMode("breathe")}
+              style={({ pressed }) => [
+                styles.toolButton,
+                selectedMode === "breathe" && styles.toolButtonActive,
+                pressed && styles.pressed
+              ]}
             >
-              <Ionicons name="chevron-back" size={20} color={colors.primaryBlue} />
-              <Text style={styles.backText}>Back</Text>
+              <Ionicons
+                name="pulse-outline"
+                size={19}
+                color={selectedMode === "breathe" ? colors.white : colors.primaryBlue}
+              />
+              <Text style={[styles.toolButtonText, selectedMode === "breathe" && styles.toolButtonTextActive]}>
+                Breathe
+              </Text>
             </Pressable>
 
-            <View style={styles.toolSwitcher}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={(event) => {
-                  event.stopPropagation();
-                  setSelectedMode("breathe");
-                }}
-                style={({ pressed }) => [
-                  styles.toolButton,
-                  selectedMode === "breathe" && styles.toolButtonActive,
-                  pressed && styles.pressed
-                ]}
-              >
-                <Ionicons
-                  name="pulse-outline"
-                  size={19}
-                  color={selectedMode === "breathe" ? colors.white : colors.primaryBlue}
-                />
-                <Text style={[styles.toolButtonText, selectedMode === "breathe" && styles.toolButtonTextActive]}>
-                  Breathe
-                </Text>
-              </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSelectedMode("focus")}
+              style={({ pressed }) => [
+                styles.toolButton,
+                selectedMode === "focus" && styles.toolButtonActive,
+                pressed && styles.pressed
+              ]}
+            >
+              <Ionicons
+                name="eye-outline"
+                size={19}
+                color={selectedMode === "focus" ? colors.white : colors.primaryBlue}
+              />
+              <Text style={[styles.toolButtonText, selectedMode === "focus" && styles.toolButtonTextActive]}>
+                Focus
+              </Text>
+            </Pressable>
 
-              <Pressable
-                accessibilityRole="button"
-                onPress={(event) => {
-                  event.stopPropagation();
-                  setSelectedMode("focus");
-                }}
-                style={({ pressed }) => [
-                  styles.toolButton,
-                  selectedMode === "focus" && styles.toolButtonActive,
-                  pressed && styles.pressed
-                ]}
-              >
-                <Ionicons
-                  name="eye-outline"
-                  size={19}
-                  color={selectedMode === "focus" ? colors.white : colors.primaryBlue}
-                />
-                <Text style={[styles.toolButtonText, selectedMode === "focus" && styles.toolButtonTextActive]}>
-                  Focus
-                </Text>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={(event) => {
-                  event.stopPropagation();
-                  setSelectedMode("explain");
-                }}
-                style={({ pressed }) => [
-                  styles.toolButton,
-                  selectedMode === "explain" && styles.toolButtonActive,
-                  pressed && styles.pressed
-                ]}
-              >
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={19}
-                  color={selectedMode === "explain" ? colors.white : colors.primaryBlue}
-                />
-                <Text style={[styles.toolButtonText, selectedMode === "explain" && styles.toolButtonTextActive]}>
-                  Explain
-                </Text>
-              </Pressable>
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSelectedMode("explain")}
+              style={({ pressed }) => [
+                styles.toolButton,
+                selectedMode === "explain" && styles.toolButtonActive,
+                pressed && styles.pressed
+              ]}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={19}
+                color={selectedMode === "explain" ? colors.white : colors.primaryBlue}
+              />
+              <Text style={[styles.toolButtonText, selectedMode === "explain" && styles.toolButtonTextActive]}>
+                Explain
+              </Text>
+            </Pressable>
           </View>
-        ) : null}
-      </Pressable>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -393,8 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    backgroundColor: "rgba(238,247,255,0.08)"
+    paddingBottom: spacing.xl
   },
   backButton: {
     alignSelf: "flex-start",
