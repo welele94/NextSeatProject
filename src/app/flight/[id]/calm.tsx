@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,12 +9,13 @@ import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing, typography } from "@/theme";
 
 type CalmMode = "breathe" | "focus" | "explain";
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
 const modes: Array<{
   id: CalmMode;
   title: string;
   body: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconName;
 }> = [
   {
     id: "breathe",
