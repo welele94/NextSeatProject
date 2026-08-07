@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing, typography } from "@/theme";
+import { colors, radius, spacing, typography } from "@/theme";
 
 export default function FlightTabsLayout() {
   const router = useRouter();
@@ -48,7 +48,8 @@ export default function FlightTabsLayout() {
           paddingTop: 8,
           paddingBottom: 18,
           borderTopColor: colors.border,
-          backgroundColor: colors.surface
+          backgroundColor: colors.surface,
+          overflow: "visible"
         }
       }}
     >
@@ -79,20 +80,26 @@ export default function FlightTabsLayout() {
       />
 
       <Tabs.Screen
-        name="calm"
-        options={{
-          href: null,
-          title: "Calm mode"
-        }}
-      />
-
-      <Tabs.Screen
         name="journey"
         options={{
           title: "Journey",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="map-outline" size={size} color={color} />
           )
+        }}
+      />
+
+      <Tabs.Screen
+        name="calm"
+        options={{
+          title: "Calm",
+          tabBarItemStyle: styles.calmTabItem,
+          tabBarIcon: () => (
+            <View style={styles.calmTabButton}>
+              <Ionicons name="heart-outline" size={30} color={colors.white} />
+            </View>
+          ),
+          tabBarLabelStyle: styles.calmTabLabel
         }}
       />
 
@@ -135,5 +142,31 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.primaryBlue,
     fontWeight: "700"
+  },
+  calmTabItem: {
+    overflow: "visible"
+  },
+  calmTabButton: {
+    width: 60,
+    height: 60,
+    marginTop: -24,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primaryBlue,
+    borderWidth: 4,
+    borderColor: colors.surface,
+    shadowColor: colors.primaryBlue,
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6
+  },
+  calmTabLabel: {
+    ...typography.caption,
+    color: colors.primaryBlue,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 2
   }
 });
