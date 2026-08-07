@@ -59,6 +59,8 @@ export type ExternalFlightSeed = {
   // Internal guidance signals only. Do not show these as flight-tracker data in the UI.
   liveAltitudeFeet?: number;
   liveVerticalSpeedFeetPerMinute?: number;
+  liveLatitude?: number;
+  liveLongitude?: number;
   livePositionReportedAtUtc?: string;
 
   provider: FlightLookupProviderId;
