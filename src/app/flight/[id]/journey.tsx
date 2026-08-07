@@ -34,7 +34,7 @@ type RouteSegmentData = {
 const MAP_WIDTH = 342;
 const MAP_HEIGHT = 173;
 const ROUTE_SAMPLE_COUNT = 32;
-const WORLD_MAP = require("@/assets/maps/map.PNG");
+const WORLD_MAP = require("../../../assets/maps/map.PNG");
 
 const journeyStages: JourneyStage[] = [
   { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
