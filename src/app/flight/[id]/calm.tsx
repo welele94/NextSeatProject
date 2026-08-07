@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { ComponentProps } from "react";
+import { router, useGlobalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
@@ -9,133 +9,124 @@ import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { colors, radius, spacing, typography } from "@/theme";
 
 type CalmMode = "breathe" | "focus" | "explain";
-type IoniconName = ComponentProps<typeof Ionicons>["name"];
+type BreathStep = "prepare" | "inhale" | "exhale";
 
-type BreathStep = "inhale" | "exhale";
-
-const INHALE_MS = 4000;
-const EXHALE_MS = 6000;
-
-const modes: Array<{
-  id: CalmMode;
-  title: string;
-  body: string;
-  icon: IoniconName;
-}> = [
-  {
-    id: "breathe",
-    title: "Help me breathe",
-    body: "Use a simple, gentle breathing rhythm. No need to force a deep breath.",
-    icon: "pulse-outline"
-  },
-  {
-    id: "focus",
-    title: "Help me focus",
-    body: "Give your attention one calm visual point and notice what is around you.",
-    icon: "eye-outline"
-  },
-  {
-    id: "explain",
-    title: "Tell me what’s happening",
-    body: "Get a short explanation based on the latest flight information saved on this device.",
-    icon: "chatbubble-ellipses-outline"
-  }
-];
+const PREPARE_SECONDS = 3;
+const INHALE_SECONDS = 4;
+const EXHALE_SECONDS = 6;
+const CONTROLS_HIDE_MS = 4500;
 
 function BreathingExercise() {
-  const [step, setStep] = useState<BreathStep>("inhale");
+  const [step, setStep] = useState<BreathStep>("prepare");
+  const [countdown, setCountdown] = useState(PREPARE_SECONDS);
   const scale = useRef(new Animated.Value(0.82)).current;
-  const glowOpacity = useRef(new Animated.Value(0.35)).current;
+  const glowOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     let active = true;
+    let phaseTimer: ReturnType<typeof setTimeout> | undefined;
+    let countdownTimer: ReturnType<typeof setInterval> | undefined;
 
-    function runInhale() {
-      if (!active) return;
-      setStep("inhale");
-
-      Animated.parallel([
-        Animated.timing(scale, {
-          toValue: 1.08,
-          duration: INHALE_MS,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true
-        }),
-        Animated.timing(glowOpacity, {
-          toValue: 0.78,
-          duration: INHALE_MS,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true
-        })
-      ]).start(({ finished }) => {
-        if (finished && active) runExhale();
-      });
+    function clearPhaseTimers() {
+      if (phaseTimer) clearTimeout(phaseTimer);
+      if (countdownTimer) clearInterval(countdownTimer);
     }
 
-    function runExhale() {
+    function runPhase(nextStep: BreathStep, seconds: number) {
       if (!active) return;
-      setStep("exhale");
+      clearPhaseTimers();
+      setStep(nextStep);
+      setCountdown(seconds);
 
-      Animated.parallel([
-        Animated.timing(scale, {
-          toValue: 0.82,
-          duration: EXHALE_MS,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true
-        }),
-        Animated.timing(glowOpacity, {
-          toValue: 0.35,
-          duration: EXHALE_MS,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true
-        })
-      ]).start(({ finished }) => {
-        if (finished && active) runInhale();
-      });
+      const durationMs = seconds * 1000;
+      const startedAt = Date.now();
+
+      if (nextStep === "inhale") {
+        Animated.parallel([
+          Animated.timing(scale, {
+            toValue: 1.08,
+            duration: durationMs,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          }),
+          Animated.timing(glowOpacity, {
+            toValue: 0.72,
+            duration: durationMs,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          })
+        ]).start();
+      } else if (nextStep === "exhale") {
+        Animated.parallel([
+          Animated.timing(scale, {
+            toValue: 0.82,
+            duration: durationMs,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          }),
+          Animated.timing(glowOpacity, {
+            toValue: 0.3,
+            duration: durationMs,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true
+          })
+        ]).start();
+      } else {
+        scale.setValue(0.82);
+        glowOpacity.setValue(0.3);
+      }
+
+      countdownTimer = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(1, Math.ceil((durationMs - elapsed) / 1000));
+        setCountdown(remaining);
+      }, 200);
+
+      phaseTimer = setTimeout(() => {
+        if (!active) return;
+        if (nextStep === "prepare") runPhase("inhale", INHALE_SECONDS);
+        else if (nextStep === "inhale") runPhase("exhale", EXHALE_SECONDS);
+        else runPhase("inhale", INHALE_SECONDS);
+      }, durationMs);
     }
 
-    runInhale();
+    runPhase("prepare", PREPARE_SECONDS);
 
     return () => {
       active = false;
+      clearPhaseTimers();
       scale.stopAnimation();
       glowOpacity.stopAnimation();
     };
   }, [glowOpacity, scale]);
 
+  const instruction =
+    step === "prepare" ? "Get ready" : step === "inhale" ? "Breathe in" : "Breathe out";
+
   return (
-    <View style={styles.exerciseCard}>
+    <View style={styles.breatheContent}>
       <View style={styles.breathStage}>
         <Animated.View style={[styles.breathGlow, { opacity: glowOpacity, transform: [{ scale }] }]} />
         <Animated.View style={[styles.breathCircle, { transform: [{ scale }] }]}>
-          <Text style={styles.breathWord}>{step === "inhale" ? "Breathe in" : "Breathe out"}</Text>
-          <Text style={styles.breathTiming}>{step === "inhale" ? "4 seconds" : "6 seconds"}</Text>
+          <Text style={styles.countdown}>{countdown}</Text>
+          <Text style={styles.breathWord}>{instruction}</Text>
         </Animated.View>
       </View>
-
-      <Text style={styles.exerciseTitle}>Follow the circle</Text>
-      <Text style={styles.exerciseBody}>
-        Let the circle guide you. Breathe in as it expands, then breathe out slowly as it becomes smaller. You do not need to force a deep breath.
-      </Text>
-      <Text style={styles.smallNote}>The rhythm continues automatically. Just follow it for as long as it feels useful.</Text>
+      {step === "prepare" ? (
+        <Text style={styles.singleInstruction}>Just follow the circle.</Text>
+      ) : null}
     </View>
   );
 }
 
 function FocusExercise() {
   return (
-    <View style={styles.exerciseCard}>
-      <Text style={styles.exerciseEyebrow}>Visual grounding</Text>
-      <View style={styles.focusArea}>
-        <View style={styles.focusHalo}>
-          <View style={styles.focusDot} />
-        </View>
+    <View style={styles.toolContent}>
+      <View style={styles.focusHalo}>
+        <View style={styles.focusDot} />
       </View>
-      <Text style={styles.exerciseTitle}>Let your eyes rest here</Text>
-      <Text style={styles.exerciseBody}>
-        Keep your gaze on the point if it feels comfortable. Notice the seat supporting you, one sound around you, and one thing you can physically feel.
-      </Text>
-      <Text style={styles.smallNote}>You can look away at any time. The goal is simply to give your attention somewhere steady.</Text>
+      <Text style={styles.toolTitle}>Let your eyes rest here.</Text>
+      <Text style={styles.toolBody}>Notice the seat supporting you and one thing you can physically feel.</Text>
     </View>
   );
 }
@@ -143,67 +134,65 @@ function FocusExercise() {
 function ExplainExercise({
   phaseLabel,
   title,
-  body,
-  guidanceCopy
+  body
 }: {
   phaseLabel: string;
   title: string;
   body: string;
-  guidanceCopy: string;
 }) {
   return (
-    <View style={styles.exerciseCard}>
-      <Text style={styles.exerciseEyebrow}>{phaseLabel}</Text>
-      <Text style={styles.exerciseTitle}>{title}</Text>
-      <Text style={styles.exerciseBody}>{body}</Text>
-      <View style={styles.reassuranceStrip}>
-        <Ionicons name="shield-checkmark-outline" size={20} color={colors.primaryBlue} />
-        <Text style={styles.reassuranceText}>{guidanceCopy}</Text>
-      </View>
-      <Text style={styles.smallNote}>Based on the latest flight data saved on this device. This is not live tracking.</Text>
+    <View style={styles.toolCard}>
+      <Text style={styles.toolEyebrow}>{phaseLabel}</Text>
+      <Text style={styles.toolTitle}>{title}</Text>
+      <Text style={styles.toolBody}>{body}</Text>
+      <Text style={styles.savedNote}>Latest saved flight data · not live tracking</Text>
     </View>
   );
 }
 
 export default function CalmModeScreen() {
+  const { id } = useGlobalSearchParams<{ id: string }>();
   const { snapshot } = useFlightSnapshot();
   const [selectedMode, setSelectedMode] = useState<CalmMode>("breathe");
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const ui = useMemo(() => (snapshot ? buildFlightUiSnapshot(snapshot) : undefined), [snapshot]);
+
+  useEffect(() => {
+    if (!controlsVisible) return;
+
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_MS);
+
+    return () => {
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    };
+  }, [controlsVisible, selectedMode]);
+
+  function revealControls() {
+    setControlsVisible(true);
+  }
+
+  function goBackToOverview() {
+    if (!id) {
+      router.back();
+      return;
+    }
+
+    router.replace({
+      pathname: "/flight/[id]/overview" as never,
+      params: { id } as never
+    });
+  }
 
   if (!snapshot || !ui) return <SafeAreaView style={styles.safeArea} />;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.intro}>
-          <Text style={styles.eyebrow}>Calm mode</Text>
-          <Text style={styles.title}>You only need to handle this moment.</Text>
-          <Text style={styles.subtitle}>Choose what feels easiest right now. There is no correct option.</Text>
-        </View>
-
-        <View style={styles.modeRow}>
-          {modes.map((mode) => {
-            const isActive = selectedMode === mode.id;
-            return (
-              <Pressable
-                key={mode.id}
-                accessibilityRole="button"
-                onPress={() => setSelectedMode(mode.id)}
-                style={({ pressed }) => [
-                  styles.modeButton,
-                  isActive && styles.modeButtonActive,
-                  pressed && styles.pressed
-                ]}
-              >
-                <Ionicons name={mode.icon} size={22} color={isActive ? colors.white : colors.primaryBlue} />
-                <Text style={[styles.modeButtonText, isActive && styles.modeButtonTextActive]}>{mode.title}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <Text style={styles.modeDescription}>{modes.find((mode) => mode.id === selectedMode)?.body}</Text>
+      <Pressable accessibilityRole="button" onPress={revealControls} style={styles.immersiveArea}>
+        <View pointerEvents="none" style={styles.softGlowTop} />
+        <View pointerEvents="none" style={styles.softGlowBottom} />
 
         {selectedMode === "breathe" ? <BreathingExercise /> : null}
         {selectedMode === "focus" ? <FocusExercise /> : null}
@@ -212,99 +201,233 @@ export default function CalmModeScreen() {
             phaseLabel={ui.currentPhaseLabel}
             title={ui.reassuranceMessage.title}
             body={ui.reassuranceMessage.body}
-            guidanceCopy={ui.guidanceCopy}
           />
         ) : null}
-      </ScrollView>
+
+        {controlsVisible ? (
+          <View style={styles.controlsOverlay}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={(event) => {
+                event.stopPropagation();
+                goBackToOverview();
+              }}
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+            >
+              <Ionicons name="chevron-back" size={20} color={colors.primaryBlue} />
+              <Text style={styles.backText}>Back</Text>
+            </Pressable>
+
+            <View style={styles.toolSwitcher}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedMode("breathe");
+                }}
+                style={({ pressed }) => [
+                  styles.toolButton,
+                  selectedMode === "breathe" && styles.toolButtonActive,
+                  pressed && styles.pressed
+                ]}
+              >
+                <Ionicons
+                  name="pulse-outline"
+                  size={19}
+                  color={selectedMode === "breathe" ? colors.white : colors.primaryBlue}
+                />
+                <Text style={[styles.toolButtonText, selectedMode === "breathe" && styles.toolButtonTextActive]}>
+                  Breathe
+                </Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedMode("focus");
+                }}
+                style={({ pressed }) => [
+                  styles.toolButton,
+                  selectedMode === "focus" && styles.toolButtonActive,
+                  pressed && styles.pressed
+                ]}
+              >
+                <Ionicons
+                  name="eye-outline"
+                  size={19}
+                  color={selectedMode === "focus" ? colors.white : colors.primaryBlue}
+                />
+                <Text style={[styles.toolButtonText, selectedMode === "focus" && styles.toolButtonTextActive]}>
+                  Focus
+                </Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedMode("explain");
+                }}
+                style={({ pressed }) => [
+                  styles.toolButton,
+                  selectedMode === "explain" && styles.toolButtonActive,
+                  pressed && styles.pressed
+                ]}
+              >
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={19}
+                  color={selectedMode === "explain" ? colors.white : colors.primaryBlue}
+                />
+                <Text style={[styles.toolButtonText, selectedMode === "explain" && styles.toolButtonTextActive]}>
+                  Explain
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+      </Pressable>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#EAF5FF" },
-  content: {
+  safeArea: { flex: 1, backgroundColor: "#EEF7FF" },
+  immersiveArea: {
+    flex: 1,
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
-    gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: 120
-  },
-  intro: { gap: spacing.sm },
-  eyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
-  title: { ...typography.hero, color: colors.textPrimary, fontSize: 30, lineHeight: 36 },
-  subtitle: { ...typography.body, color: colors.textSecondary, lineHeight: 24 },
-  modeRow: { gap: spacing.sm },
-  modeButton: {
-    minHeight: 58,
-    flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: "rgba(13, 59, 140, 0.14)",
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  softGlowTop: {
+    position: "absolute",
+    top: -130,
+    right: -110,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
     backgroundColor: "rgba(255,255,255,0.72)"
   },
-  modeButtonActive: { backgroundColor: colors.primaryBlue, borderColor: colors.primaryBlue },
-  modeButtonText: { ...typography.body, color: colors.textPrimary, fontWeight: "800" },
-  modeButtonTextActive: { color: colors.white },
-  modeDescription: { ...typography.caption, color: colors.textSecondary, lineHeight: 20, paddingHorizontal: spacing.sm },
-  exerciseCard: {
+  softGlowBottom: {
+    position: "absolute",
+    bottom: -170,
+    left: -120,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: "rgba(221,235,255,0.55)"
+  },
+  breatheContent: { alignItems: "center", justifyContent: "center", gap: spacing.xl },
+  breathStage: { width: 290, height: 290, alignItems: "center", justifyContent: "center" },
+  breathGlow: {
+    position: "absolute",
+    width: 246,
+    height: 246,
+    borderRadius: 123,
+    backgroundColor: "#DFEDFF"
+  },
+  breathCircle: {
+    width: 214,
+    height: 214,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 107,
+    backgroundColor: "#D6E7FF",
+    borderWidth: 8,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  countdown: {
+    ...typography.hero,
+    color: colors.primaryBlue,
+    fontSize: 58,
+    lineHeight: 64,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"]
+  },
+  breathWord: {
+    ...typography.section,
+    color: colors.primaryBlue,
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: "700",
+    marginTop: spacing.xs
+  },
+  singleInstruction: {
+    ...typography.section,
+    color: colors.textPrimary,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "700"
+  },
+  toolContent: { alignItems: "center", gap: spacing.xl, paddingHorizontal: spacing.xl },
+  focusHalo: {
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#DFEDFF",
+    borderWidth: 8,
+    borderColor: "rgba(255,255,255,0.72)"
+  },
+  focusDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primaryBlue },
+  toolCard: {
+    width: "88%",
     gap: spacing.lg,
     padding: spacing.xl,
     borderRadius: radius.xl,
-    backgroundColor: colors.white,
+    backgroundColor: "rgba(255,255,255,0.86)",
     borderWidth: 1,
-    borderColor: "rgba(13, 59, 140, 0.10)"
+    borderColor: "rgba(13,59,140,0.10)"
   },
-  exerciseEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
-  exerciseTitle: { ...typography.section, color: colors.textPrimary, fontSize: 22, lineHeight: 28 },
-  exerciseBody: { ...typography.body, color: colors.textPrimary, lineHeight: 25 },
-  breathStage: {
-    height: 238,
-    alignItems: "center",
-    justifyContent: "center"
+  toolEyebrow: { ...typography.eyebrow, color: colors.primaryBlue, fontWeight: "800" },
+  toolTitle: { ...typography.section, color: colors.textPrimary, textAlign: "center", fontSize: 23, lineHeight: 29 },
+  toolBody: { ...typography.body, color: colors.textSecondary, textAlign: "center", lineHeight: 24, maxWidth: 330 },
+  savedNote: { ...typography.caption, color: colors.textSecondary, textAlign: "center", lineHeight: 18 },
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    backgroundColor: "rgba(238,247,255,0.08)"
   },
-  breathGlow: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "#EAF3FF"
-  },
-  breathCircle: {
-    width: 190,
-    height: 190,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 95,
-    backgroundColor: "#DDEBFF",
-    borderWidth: 8,
-    borderColor: "#F4F8FF"
-  },
-  breathWord: { ...typography.section, color: colors.primaryBlue, fontWeight: "800" },
-  breathTiming: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
-  focusArea: { height: 210, alignItems: "center", justifyContent: "center" },
-  focusHalo: {
-    width: 148,
-    height: 148,
-    borderRadius: 74,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EDF5FF"
-  },
-  focusDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primaryBlue },
-  reassuranceStrip: {
+  backButton: {
+    alignSelf: "flex-start",
+    minHeight: 44,
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: "#F2F7FF"
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.86)"
   },
-  reassuranceText: { ...typography.caption, color: colors.textPrimary, lineHeight: 20, flex: 1 },
-  smallNote: { ...typography.caption, color: colors.textSecondary, lineHeight: 19 },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.996 }] }
+  backText: { ...typography.caption, color: colors.primaryBlue, fontWeight: "800" },
+  toolSwitcher: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignSelf: "center",
+    padding: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(13,59,140,0.08)"
+  },
+  toolButton: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill
+  },
+  toolButtonActive: { backgroundColor: colors.primaryBlue },
+  toolButtonText: { ...typography.caption, color: colors.primaryBlue, fontWeight: "800" },
+  toolButtonTextActive: { color: colors.white },
+  pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] }
 });
