@@ -12,13 +12,13 @@ import {
 import type { DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { WORLD_ROUTE_MAP } from "@/assets/offlineRouteMaps";
 import { GuidanceModeBadge } from "@/components/flight/Sprint10Cards";
 import { buildFlightUiSnapshot } from "@/features/flightSnapshot/uiSnapshot";
 import { useFlightSnapshot } from "@/features/flightSnapshot/useFlightSnapshot";
 import { greatCircleRoute } from "@/features/maps/greatCircle";
 import {
   clamp,
-  getEquirectangularImageStyle,
   isRealCoordinate,
   projectToViewport,
   type MapPoint
@@ -47,7 +47,7 @@ const MAP_WIDTH = 342;
 const MAP_HEIGHT = 190;
 const EXPANDED_MAP_HEIGHT = 360;
 const ROUTE_SAMPLE_COUNT = 32;
-const WORLD_MAP = require("../../../assets/maps/map.png");
+const WORLD_MAP = { uri: WORLD_ROUTE_MAP.uri };
 
 const journeyStages: JourneyStage[] = [
   { label: "Pre-flight", icon: "clipboard-outline", threshold: 0 },
@@ -191,7 +191,15 @@ function RouteMapCanvas({
   expanded?: boolean;
 }) {
   const viewport = computeMapViewport(originCoordinates, destinationCoordinates, width, height);
-  const imageStyle = getEquirectangularImageStyle(viewport, width, height);
+  const bounds = WORLD_ROUTE_MAP.bounds;
+  const scaleX = width / (viewport.maxLongitude - viewport.minLongitude);
+  const scaleY = height / (viewport.maxLatitude - viewport.minLatitude);
+  const imageStyle = {
+    width: (bounds.maxLongitude - bounds.minLongitude) * scaleX,
+    height: (bounds.maxLatitude - bounds.minLatitude) * scaleY,
+    left: (bounds.minLongitude - viewport.minLongitude) * scaleX,
+    top: (viewport.maxLatitude - bounds.maxLatitude) * scaleY
+  };
   const hasCoordinates = isRealCoordinate(originCoordinates) && isRealCoordinate(destinationCoordinates);
   const originPoint = hasCoordinates
     ? projectToViewport(originCoordinates, viewport, width, height)
